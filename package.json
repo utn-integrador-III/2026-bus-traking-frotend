@@ -1,0 +1,20 @@
+{
+  "name": "2026-bus-tracking-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo frontend Bus Tracking: app movil React Native (raiz, en construccion) + web Next.js en web/. La raiz aloja el tooling compartido (Husky + automatizaciones).",
+  "scripts": {
+    "prepare": "husky",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:lint": "npm --prefix web run lint",
+    "web:typecheck": "npm --prefix web run typecheck",
+    "web:test": "npm --prefix web run test",
+    "web:strip:dry": "npm --prefix web run strip:dry",
+    "web:strip:apply": "npm --prefix web run strip:apply",
+    "web:env:check": "npm --prefix web run env:check"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
