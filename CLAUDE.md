@@ -16,10 +16,13 @@ Estado actual: **scaffold**. La estructura de carpetas en `src/` (app móvil) ex
 archivos están vacíos. `package.json` y `.env.example` raíz aún no tienen contenido de la app
 móvil — son los primeros artefactos a crear para el móvil.
 
-> **Este repo es un monorepo.** En la raíz vive (en construcción) la app **móvil React Native**
-> y el **tooling compartido**; en **`web/`** vive una app **web Next.js** ya inicializada. Ver
-> la sección "Aplicación web (`web/`)" más abajo. El `package.json` de la raíz es el root de
-> tooling (Husky + automatizaciones) del monorepo, no la app móvil todavía.
+> **Este repo es un monorepo (npm workspaces).** El `package.json` de la raíz declara
+> `workspaces: ["web", "packages/*"]` y es el root de tooling (Husky + automatizaciones). En la
+> raíz vive (en construcción) la app **móvil React Native**; en **`web/`** la app **web Next.js**;
+> en **`packages/design/`** (`@bustrack/design`) el **sistema de diseño compartido** (tokens +
+> tema) que consumen web y móvil. `npm install` se corre **desde la raíz** (un único
+> `package-lock.json` raíz; no hay lockfiles por workspace). Ver secciones "Aplicación web
+> (`web/`)" y "Sistema de diseño (`packages/design`)" más abajo.
 
 ## Stack tecnológico (autoritativo)
 
@@ -240,12 +243,36 @@ Las mismas verificaciones corren en el hook local **y** en CI:
   lockfiles, fixtures.
 - **check-env-drift** (`web/scripts/check-env-drift.mjs`): falla si una var de `lib/env.ts`
   (bloques `server`/`client`) falta en `.env.example`.
-- **GitHub Actions** (raíz `.github/`): `ci.yml` (jobs `typecheck`/`lint`+`strip:dry`/`build`/`test`
-  con `working-directory: web`, npm + Node 22) y `secret-scan.yml` (gitleaks full-history sobre
-  push/PR a `main`/`qa`/`dev`). `dependabot.yml` agrupa updates npm de `/web` y de la raíz, + actions.
+- **GitHub Actions** (raíz `.github/`): `ci.yml` (jobs `typecheck`/`lint`+`strip:dry`/`build`/`test`,
+  npm + Node 22, **un único `npm ci` en la raíz** y scripts por workspace `npm run web:*` /
+  `design:typecheck`) y `secret-scan.yml` (gitleaks full-history sobre push/PR a `main`/`qa`/`dev`).
+  `dependabot.yml` agrupa updates npm de la raíz (cubre todos los workspaces) + actions.
 
-> Para la app móvil (raíz) estas automatizaciones aún no aplican; los hooks hoy validan `web/`.
-> Cuando el móvil arranque, extender el `pre-commit` y un job de CI análogos.
+> Para la app móvil (raíz) estas automatizaciones aún no aplican; los hooks hoy validan `web/` y
+> el typecheck de `packages/design`. Cuando el móvil arranque, extender el `pre-commit` y un job
+> de CI análogos.
+
+## Sistema de diseño (`packages/design`)
+
+Paquete `@bustrack/design`: **fuente única de verdad** de la identidad visual (derivada del
+mockup `Bus Tracking App.dc.html`). Lo consumen **web y móvil** vía npm workspaces. Esta entrega
+es **tokens + tema** (sin componentes React/RN todavía).
+
+- **Identidad:** Prussian navy `#14213d`, Orange/Amber `#fca311`, fondo `#e8e9e6`, fuente
+  **Plus Jakarta Sans** (400–800); acentos por rol (Pasajero ámbar, Conductor `#3e67bf`, Admin
+  `#7e99d5`); estados success/warning/danger/info.
+- **Estructura:** `src/tokens/*` (colors, semantic, typography, spacing, radii, shadows, zIndex)
+  es la fuente de verdad; `src/icons/` set de iconos SVG (path data) agnóstico de plataforma;
+  `styles/theme.css` refleja los tokens como `@theme` de Tailwind v4. Al cambiar un token,
+  **actualizar TS y `theme.css`**.
+- **Web:** `app/globals.css` importa `@import "@bustrack/design/theme.css";` (después de
+  `tailwindcss`) → utilidades `bg-brand text-accent rounded-lg shadow-card text-2xl …`. La fuente
+  se carga en `app/layout.tsx` con `next/font` exponiendo `--font-jakarta`. `next.config.ts` lleva
+  `transpilePackages: ["@bustrack/design"]`. También se pueden importar valores:
+  `import { color, radius, icons } from "@bustrack/design"`.
+- **Móvil (futuro):** importar tokens directo (`color`, `spacing`, `radius`, `elevation`) en
+  `StyleSheet`; iconos con `react-native-svg`; fuente con `expo-font`.
+- **Comando:** `npm run design:typecheck` (desde la raíz).
 
 ## Restricción — Flujo de ramas Git (regla dura)
 

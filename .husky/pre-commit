@@ -1,12 +1,18 @@
 #!/bin/sh
+echo "[pre-commit] design: tsc --noEmit"
+npm run design:typecheck || {
+  echo "[pre-commit] BLOQUEADO: errores de TypeScript en packages/design"
+  exit 1
+}
+
 echo "[pre-commit] web: tsc --noEmit"
-( cd web && npm run typecheck ) || {
+npm run web:typecheck || {
   echo "[pre-commit] BLOQUEADO: errores de TypeScript en web/"
   exit 1
 }
 
 echo "[pre-commit] web: eslint"
-( cd web && npm run lint ) || {
+npm run web:lint || {
   echo "[pre-commit] BLOQUEADO: errores de ESLint en web/"
   exit 1
 }

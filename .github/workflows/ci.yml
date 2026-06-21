@@ -19,10 +19,6 @@ concurrency:
 env:
   NODE_VERSION: "22"
 
-defaults:
-  run:
-    working-directory: web
-
 jobs:
   typecheck:
     runs-on: ubuntu-latest
@@ -32,9 +28,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run design:typecheck
+      - run: npm run web:typecheck
 
   lint:
     runs-on: ubuntu-latest
@@ -44,11 +41,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm run lint
+      - run: npm run web:lint
       - name: Verify zero code comments
-        run: npm run strip:dry
+        run: npm run web:strip:dry
 
   build:
     runs-on: ubuntu-latest
@@ -60,9 +57,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm run web:build
 
   test:
     runs-on: ubuntu-latest
@@ -73,9 +70,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
       - name: Run test suite
-        run: npm test
+        run: npm run web:test
