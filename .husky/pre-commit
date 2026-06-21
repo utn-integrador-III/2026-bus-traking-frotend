@@ -1,0 +1,24 @@
+#!/bin/sh
+echo "[pre-commit] web: tsc --noEmit"
+( cd web && npm run typecheck ) || {
+  echo "[pre-commit] BLOQUEADO: errores de TypeScript en web/"
+  exit 1
+}
+
+echo "[pre-commit] web: eslint"
+( cd web && npm run lint ) || {
+  echo "[pre-commit] BLOQUEADO: errores de ESLint en web/"
+  exit 1
+}
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "[pre-commit] gitleaks (staged)"
+  gitleaks protect --staged --config .gitleaks.toml --redact --no-banner || {
+    echo "[pre-commit] BLOQUEADO: gitleaks detectó posible secret en staged changes"
+    echo "[pre-commit] Si es false positive, ajustar .gitleaks.toml allowlist y reintentar."
+    exit 1
+  }
+else
+  echo "[pre-commit] gitleaks no instalado — saltando secret scan local (CI lo enforza)"
+  echo "[pre-commit] Instalar: https://github.com/gitleaks/gitleaks#installation"
+fi
