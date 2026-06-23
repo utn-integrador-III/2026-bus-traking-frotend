@@ -13,8 +13,10 @@ Cliente **móvil (frontend)** de una aplicación de **seguimiento de buses en ti
 > `D:\GitHub\Universidad\Integrador III\2026-bus-tracking-api`.
 
 Estado actual: **scaffold**. La estructura de carpetas en `src/` (app móvil) existe pero los
-archivos están vacíos. `package.json` y `.env.example` raíz aún no tienen contenido de la app
-móvil — son los primeros artefactos a crear para el móvil.
+archivos están vacíos (incluido `App.tsx` en la raíz, 0 bytes). El `package.json` raíz **ya
+tiene** los workspaces y el tooling compartido, pero **aún faltan los scripts de la app móvil**
+(`expo start`, `android`, `ios`, `lint`); ése es el primer artefacto a crear para el móvil. El
+`.env.example` raíz **ya tiene** las claves del móvil (ver "Variables de entorno" más abajo).
 
 > **Este repo es un monorepo (npm workspaces).** El `package.json` de la raíz declara
 > `workspaces: ["web", "packages/*"]` y es el root de tooling (Husky + automatizaciones). En la
@@ -38,7 +40,8 @@ móvil — son los primeros artefactos a crear para el móvil.
 
 ## Comandos
 
-> `package.json` está vacío; estos scripts deben crearse. Convención esperada (proyecto Expo):
+> El `package.json` raíz solo tiene scripts de tooling/workspaces (`prepare`, `web:*`,
+> `design:typecheck`); los scripts del móvil aún deben crearse. Convención esperada (Expo):
 
 ```bash
 npm install            # instalar dependencias
@@ -53,14 +56,20 @@ Copiar `.env.example` → `.env` antes de correr. El backend espera el frontend 
 
 ## Variables de entorno (frontend)
 
-`.env.example` está vacío. Las claves mínimas que el cliente necesita (prefijo `EXPO_PUBLIC_`
-para que Expo las exponga al bundle):
+El `.env.example` raíz ya define las claves del móvil (prefijo `EXPO_PUBLIC_` para que Expo las
+exponga al bundle). Contenido actual:
 
 ```
-EXPO_PUBLIC_API_BASE_URL=http://localhost:8000     # API REST del backend (APP_PORT=8000)
+EXPO_PUBLIC_API_URL=http://localhost:8000          # API REST del backend (APP_PORT=8000)
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key   # SOLO la anon key, NUNCA la service_role
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_mobile_api_key
+EXPO_PUBLIC_APP_NAME=Bus Tracking App
+EXPO_PUBLIC_APP_ENV=developments
 ```
+
+> Ojo: el código que consuma la API debe leer `EXPO_PUBLIC_API_URL` (nombre real en el
+> `.env.example`), no `EXPO_PUBLIC_API_BASE_URL`.
 
 > **Nunca** embeber `SUPABASE_SERVICE_ROLE_KEY` ni `JWT_SECRET_KEY` en el cliente: son secretos
 > exclusivos del backend. El frontend solo usa la `anon key` y el JWT de sesión del usuario.
