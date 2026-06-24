@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/icon";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
-
-const supabase = createClient(
-  env.NEXT_PUBLIC_SUPABASE_URL,
-  env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { getSupabaseClient } from "@/lib/supabase";
 
 
 const features = [
@@ -31,6 +25,9 @@ const features = [
 
 export default function LoginPage() {
   const handleGoogleLogin = async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
