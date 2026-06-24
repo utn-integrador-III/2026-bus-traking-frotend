@@ -143,3 +143,15 @@ vite.config.ts.timestamp-*
 .vite/
 
 .claude
+
+# Expo
+.expo/
+dist/
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*

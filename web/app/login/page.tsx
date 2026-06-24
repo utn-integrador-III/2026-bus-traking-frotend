@@ -1,11 +1,15 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-import { Icon } from "@/components/icon";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Iniciar sesión · BusTrack",
-  description: "Inicia sesión para rastrear tu bus en tiempo real.",
-};
+import Link from "next/link";
+import { Icon } from "@/components/icon";
+import { createClient } from "@supabase/supabase-js";
+import { env } from "@/lib/env";
+
+const supabase = createClient(
+  env.NEXT_PUBLIC_SUPABASE_URL,
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 
 const features = [
   {
@@ -26,6 +30,18 @@ const features = [
 ];
 
 export default function LoginPage() {
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) {
+      console.error(error.message);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-1">
       <section className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-brand p-12 text-on-dark lg:flex xl:p-16">
@@ -156,6 +172,7 @@ export default function LoginPage() {
         <div className="flex gap-2.5">
           <button
             type="button"
+            onClick={handleGoogleLogin}
             className="flex h-12 flex-1 items-center justify-center gap-2 rounded-lg border-[1.5px] border-input-border text-base font-bold text-brand"
           >
             <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#e5e5e5] text-xs font-extrabold text-text-secondary">

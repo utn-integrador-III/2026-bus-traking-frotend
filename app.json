@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Bus Tracking App",
+    "slug": "bus-tracking-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "bustrack",
+    "platforms": ["ios", "android"],
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bustrack.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#14213d"
+      },
+      "package": "com.bustrack.app"
+    }
+  }
+}
