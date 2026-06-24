@@ -3,11 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "description": "Monorepo frontend Bus Tracking: app movil React Native (raiz, en construccion) + web Next.js en web/ + paquete de diseno compartido en packages/design. La raiz aloja el tooling compartido (Husky + automatizaciones).",
+  "main": "node_modules/expo/AppEntry.js",
   "workspaces": [
     "web",
     "packages/*"
   ],
   "scripts": {
+    "start": "npx expo start",
+    "android": "npx expo start --android",
+    "ios": "npx expo start --ios",
+    "mobile:typecheck": "tsc -p tsconfig.mobile.json --noEmit",
     "prepare": "husky",
     "design:typecheck": "npm run typecheck -w @bustrack/design",
     "web:dev": "npm run dev -w web",
@@ -19,7 +24,18 @@
     "web:strip:apply": "npm run strip:apply -w web",
     "web:env:check": "npm run env:check -w web"
   },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.49.8",
+    "expo": "~54.0.35",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-url-polyfill": "^2.0.0"
+  },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "@types/react": "~19.1.10",
+    "husky": "^9.1.7",
+    "typescript": "~5.9.2"
   }
 }
