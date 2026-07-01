@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "bustrack",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -16,6 +19,17 @@
         "backgroundColor": "#14213d"
       },
       "package": "com.bustrack.app"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permite usar la camara para tomar la foto de la cedula.",
+          "photosPermission": "Permite seleccionar la foto de la cedula."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
+    ]
   }
 }
