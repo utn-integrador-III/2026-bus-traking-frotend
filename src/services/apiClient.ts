@@ -12,6 +12,25 @@ export type TripStatus =
   | "Cancelled"
   | string;
 
+type ApiRequestOptions = {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  token?: string;
+};
+
+type ApiErrorEnvelope = {
+  code?: string;
+  message?: string;
+  details?: unknown;
+};
+
+type ApiErrorBody = {
+  message?: string;
+  error?: string | ApiErrorEnvelope;
+  code?: string;
+  details?: unknown;
+};
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -50,7 +69,7 @@ export interface PassengerRoute {
   origin: string;
   destination: string;
   status: string;
-  geometry_geojson: GeoJsonFeature | GeoJsonLineString;
+  geometry_geojson?: GeoJsonFeature | GeoJsonLineString | string | null;
 }
 
 export interface PassengerTrip {
@@ -95,9 +114,9 @@ export interface PassengerTripTrackingData {
 export class ApiClientError extends Error {
   status: number;
   code?: string;
-  details?: string;
+  details?: unknown;
 
-  constructor(message: string, status: number, code?: string, details?: string) {
+  constructor(status: number, message: string, code?: string, details?: unknown) {
     super(message);
     this.name = "ApiClientError";
     this.status = status;
@@ -106,47 +125,114 @@ export class ApiClientError extends Error {
   }
 }
 
-async function request<TResponse>(
-  path: string,
-  options: RequestInit = {},
-): Promise<TResponse> {
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(options.headers || {}),
-    },
-  });
+function readPublicEnv(key: string): string | undefined {
+  return (globalThis as any)?.process?.env?.[key];
+}
 
-  const data = await response.json().catch(() => null);
+function getApiUrl() {
+  const rawApiUrl =
+    readPublicEnv("EXPO_PUBLIC_API_URL") ||
+    readPublicEnv("EXPO_PUBLIC_API_BASE_URL") ||
+    env.apiBaseUrl;
 
-  if (!response.ok) {
-    const error = data?.error;
-
+  if (!rawApiUrl) {
     throw new ApiClientError(
-      error?.message || "Unexpected API error.",
-      response.status,
-      error?.code,
-      error?.details,
+      0,
+      "EXPO_PUBLIC_API_URL o EXPO_PUBLIC_API_BASE_URL no está configurada.",
     );
   }
 
-  return data as TResponse;
+  return rawApiUrl.replace(/\/$/, "");
 }
 
-function authHeaders(token?: string): Record<string, string> | undefined {
-  if (!token) {
-    return undefined;
+function getApiErrorEnvelope(body: ApiErrorBody | null): ApiErrorEnvelope {
+  if (!body) {
+    return { message: "No se pudo completar la solicitud." };
+  }
+
+  if (typeof body.error === "object" && body.error !== null) {
+    return {
+      code: body.error.code || body.code,
+      message:
+        body.error.message ||
+        body.message ||
+        "No se pudo completar la solicitud.",
+      details: body.error.details ?? body.details,
+    };
   }
 
   return {
-    Authorization: `Bearer ${token}`,
+    code: body.code,
+    message:
+      body.message ||
+      body.error ||
+      "No se pudo completar la solicitud.",
+    details: body.details,
   };
 }
 
+async function readResponseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (options.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
+
+  const response = await fetch(`${getApiUrl()}${path}`, {
+    method: options.method || "GET",
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+
+  const body = await readResponseBody(response);
+
+  if (!response.ok) {
+    const apiError = getApiErrorEnvelope(body as ApiErrorBody | null);
+
+    throw new ApiClientError(
+      response.status,
+      apiError.message || "No se pudo completar la solicitud.",
+      apiError.code,
+      apiError.details,
+    );
+  }
+
+  return body as T;
+}
+
 function normalizeGeoJson(source: unknown): GeoJsonFeature {
-  const raw = source as any;
+  let raw = source as any;
+
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      raw = null;
+    }
+  }
 
   if (raw?.type === "Feature" && raw?.geometry?.type === "LineString") {
     return raw as GeoJsonFeature;
@@ -235,27 +321,27 @@ function formatRouteName(route: PassengerRoute): string {
 export async function loginPassenger(
   payload: LoginRequest,
 ): Promise<LoginResponse> {
-  return request<LoginResponse>("/auth/login", {
+  return apiRequest<LoginResponse>("/auth/login", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
 export async function getPassengerRoutes(
   token?: string,
 ): Promise<PassengerRoute[]> {
-  return request<PassengerRoute[]>("/passenger/routes", {
+  return apiRequest<PassengerRoute[]>("/passenger/routes", {
     method: "GET",
-    headers: authHeaders(token),
+    token,
   });
 }
 
 export async function getPassengerTrips(
   token?: string,
 ): Promise<PassengerTrip[]> {
-  return request<PassengerTrip[]>("/passenger/trips", {
+  return apiRequest<PassengerTrip[]>("/passenger/trips", {
     method: "GET",
-    headers: authHeaders(token),
+    token,
   });
 }
 
@@ -298,8 +384,8 @@ export async function getPassengerTripTrackingData(
 
   if (!trip) {
     throw new ApiClientError(
-      "No se encontró el viaje seleccionado.",
       404,
+      "No se encontró el viaje seleccionado.",
       "TRIP_NOT_FOUND",
     );
   }
@@ -308,8 +394,8 @@ export async function getPassengerTripTrackingData(
 
   if (!route) {
     throw new ApiClientError(
-      "No se encontró la ruta asociada al viaje.",
       404,
+      "No se encontró la ruta asociada al viaje.",
       "ROUTE_NOT_FOUND",
     );
   }
