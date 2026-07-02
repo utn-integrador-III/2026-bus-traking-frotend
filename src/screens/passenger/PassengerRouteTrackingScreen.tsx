@@ -18,7 +18,7 @@ import {
   PassengerTripTrackingData,
   TripStatus,
 } from "../../services/apiClient";
-import { supabase } from "../../services/supaBase";
+import { supabase } from "../../lib/supabase";
 
 interface PassengerRouteTrackingScreenProps {
   tripId: string;
