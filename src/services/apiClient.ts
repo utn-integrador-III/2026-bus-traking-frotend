@@ -5,7 +5,7 @@ export type UserRole = "Passenger" | "Driver" | "Admin";
 export type TripStatus =
   | "Scheduled"
   | "Pending"
-  | "In Progress"
+  | "In_Progress"
   | "Stopped"
   | "Delayed"
   | "Completed"
@@ -278,7 +278,7 @@ function buildBadgeText(status: TripStatus): string {
     return "Demora";
   }
 
-  if (status === "In Progress") {
+  if (status === "In_Progress") {
     return "En ruta";
   }
 
@@ -298,7 +298,7 @@ function buildEtaText(status: TripStatus): string {
     return "+10 min";
   }
 
-  if (status === "In Progress") {
+  if (status === "In_Progress") {
     return "En vivo";
   }
 
