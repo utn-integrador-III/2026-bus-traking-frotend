@@ -4,7 +4,7 @@ function readPublicEnv(key: string): string | undefined {
 
 export const env = {
   apiBaseUrl:
-    readPublicEnv("EXPO_PUBLIC_API_BASE_URL") || "http://localhost:8000/api",
+    readPublicEnv("EXPO_PUBLIC_API_URL") || "http://localhost:8000",
 
   supabaseUrl: readPublicEnv("EXPO_PUBLIC_SUPABASE_URL") || "",
 
