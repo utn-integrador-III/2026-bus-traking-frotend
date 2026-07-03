@@ -132,13 +132,12 @@ function readPublicEnv(key: string): string | undefined {
 function getApiUrl() {
   const rawApiUrl =
     readPublicEnv("EXPO_PUBLIC_API_URL") ||
-    readPublicEnv("EXPO_PUBLIC_API_BASE_URL") ||
     env.apiBaseUrl;
 
   if (!rawApiUrl) {
     throw new ApiClientError(
       0,
-      "EXPO_PUBLIC_API_URL o EXPO_PUBLIC_API_BASE_URL no está configurada.",
+      "EXPO_PUBLIC_API_URL no está configurada.",
     );
   }
 
@@ -321,7 +320,7 @@ function formatRouteName(route: PassengerRoute): string {
 export async function loginPassenger(
   payload: LoginRequest,
 ): Promise<LoginResponse> {
-  return apiRequest<LoginResponse>("/auth/login", {
+  return apiRequest<LoginResponse>("/api/auth/login", {
     method: "POST",
     body: payload,
   });
@@ -330,7 +329,7 @@ export async function loginPassenger(
 export async function getPassengerRoutes(
   token?: string,
 ): Promise<PassengerRoute[]> {
-  return apiRequest<PassengerRoute[]>("/passenger/routes", {
+  return apiRequest<PassengerRoute[]>("/api/passenger/routes", {
     method: "GET",
     token,
   });
@@ -339,7 +338,7 @@ export async function getPassengerRoutes(
 export async function getPassengerTrips(
   token?: string,
 ): Promise<PassengerTrip[]> {
-  return apiRequest<PassengerTrip[]>("/passenger/trips", {
+  return apiRequest<PassengerTrip[]>("/api/passenger/trips", {
     method: "GET",
     token,
   });
