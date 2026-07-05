@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -9,21 +10,41 @@ import {
 } from "react-native";
 import MapView, {
   AnimatedRegion,
+  Circle,
   LatLng,
   Marker,
   Polyline,
 } from "react-native-maps";
 import {
   getPassengerTripTrackingData,
+  getTripEtaMinutes,
   PassengerTripTrackingData,
   TripStatus,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
 
+const BOARDING_RADIUS_METERS = 150;
+const ETA_REFRESH_INTERVAL_MS = 20000;
+
 interface PassengerRouteTrackingScreenProps {
   tripId: string;
   accessToken: string;
   onBack: () => void;
+}
+
+function haversineMeters(a: LatLng, b: LatLng): number {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthRadius = 6371000;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLng = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+
+  return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 interface LiveBusLocation {
@@ -107,6 +128,8 @@ export default function PassengerRouteTrackingScreen({
   const [liveLocation, setLiveLocation] = useState<LiveBusLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [hasBoarded, setHasBoarded] = useState(false);
+  const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
 
   const animatedCoordinate = useRef(
     new AnimatedRegion({
@@ -117,15 +140,130 @@ export default function PassengerRouteTrackingScreen({
     }),
   ).current;
 
+  const wasInsideBoardingZone = useRef(false);
+  const missedAlertShown = useRef(false);
+  const hasBoardedRef = useRef(false);
+  const lastEtaAt = useRef(0);
+  const boardingNodeRef = useRef<LatLng | null>(null);
+  const destinationNodeRef = useRef<LatLng | null>(null);
+
   const routePoints = useMemo(() => {
     return tripData ? geoJsonToLatLng(tripData) : [];
   }, [tripData]);
 
+  const boardingNode = routePoints.length > 0 ? routePoints[0] : null;
+  const destinationNode =
+    routePoints.length > 0 ? routePoints[routePoints.length - 1] : null;
+
+  useEffect(() => {
+    boardingNodeRef.current = boardingNode;
+    destinationNodeRef.current = destinationNode;
+  }, [boardingNode, destinationNode]);
+
   const currentStatus = liveLocation?.status || tripData?.status || "Scheduled";
   const statusLabel = buildStatusLabel(currentStatus);
 
+  function redirectToScheduleSelection() {
+    onBack();
+  }
+
+  function handleConfirmBoarding() {
+    hasBoardedRef.current = true;
+    setHasBoarded(true);
+  }
+
+  function handleCancelTracking() {
+    Alert.alert(
+      "Cancelar rastreo",
+      "¿Querés dejar de seguir este bus y elegir otro horario?",
+      [
+        { text: "Seguir viendo", style: "cancel" },
+        {
+          text: "Elegir otro horario",
+          style: "destructive",
+          onPress: redirectToScheduleSelection,
+        },
+      ],
+    );
+  }
+
+  function triggerMissedBusAlert() {
+    if (missedAlertShown.current) {
+      return;
+    }
+
+    missedAlertShown.current = true;
+
+    Alert.alert(
+      "Missed Bus",
+      "El bus cruzó tu nodo de abordaje y todavía no confirmaste tu registro. Podés elegir otro horario.",
+      [
+        {
+          text: "Elegir otro horario",
+          onPress: redirectToScheduleSelection,
+        },
+      ],
+      { cancelable: false },
+    );
+  }
+
+  function evaluateBoardingGeofence(busPoint: LatLng) {
+    const boarding = boardingNodeRef.current;
+
+    if (!boarding || hasBoardedRef.current) {
+      return;
+    }
+
+    const distance = haversineMeters(busPoint, boarding);
+    const isInside = distance <= BOARDING_RADIUS_METERS;
+
+    if (isInside) {
+      wasInsideBoardingZone.current = true;
+      return;
+    }
+
+    if (wasInsideBoardingZone.current && !isInside) {
+      wasInsideBoardingZone.current = false;
+      triggerMissedBusAlert();
+    }
+  }
+
+  async function refreshEta(busPoint: LatLng) {
+    const destination = destinationNodeRef.current;
+
+    if (!destination) {
+      return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) {
+      return;
+    }
+
+    lastEtaAt.current = now;
+
+    const minutes = await getTripEtaMinutes(
+      busPoint,
+      destination,
+      accessToken,
+    );
+
+    if (minutes !== null) {
+      setLiveEtaMinutes(minutes);
+    }
+  }
+
   function moveBusMarker(nextLocation: LiveBusLocation) {
     setLiveLocation(nextLocation);
+
+    const busPoint: LatLng = {
+      latitude: nextLocation.latitude,
+      longitude: nextLocation.longitude,
+    };
+
+    evaluateBoardingGeofence(busPoint);
+    refreshEta(busPoint);
 
     animatedCoordinate
       .timing({
@@ -268,6 +406,26 @@ export default function PassengerRouteTrackingScreen({
           strokeColor="#0F2141"
         />
 
+        {boardingNode ? (
+          <>
+            <Circle
+              center={boardingNode}
+              radius={BOARDING_RADIUS_METERS}
+              strokeColor={hasBoarded ? "#087D3B" : "#FFA70B"}
+              fillColor={
+                hasBoarded ? "rgba(8,125,59,0.12)" : "rgba(255,167,11,0.15)"
+              }
+              strokeWidth={2}
+            />
+
+            <Marker coordinate={boardingNode}>
+              <View style={styles.boardingMarker}>
+                <Text style={styles.boardingMarkerText}>Abordaje</Text>
+              </View>
+            </Marker>
+          </>
+        ) : null}
+
         <Marker.Animated coordinate={animatedCoordinate as any}>
           <View style={styles.busMarker}>
             <Text style={styles.busMarkerText}>{tripData.code}</Text>
@@ -315,7 +473,7 @@ export default function PassengerRouteTrackingScreen({
         <Text style={styles.mainText}>
           Llega a tu parada en{" "}
           <Text style={styles.highlightText}>
-            {tripData.estimatedArrivalMinutes || 4} min
+            {liveEtaMinutes ?? tripData.estimatedArrivalMinutes ?? 4} min
           </Text>
         </Text>
 
@@ -349,13 +507,26 @@ export default function PassengerRouteTrackingScreen({
             : "Esperando GPS"}
         </Text>
 
+        {hasBoarded ? (
+          <Text style={styles.boardedNote}>Abordaje confirmado ✓</Text>
+        ) : null}
+
         <View style={styles.actionsRow}>
-          <Pressable style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Reportar</Text>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={handleCancelTracking}
+          >
+            <Text style={styles.secondaryButtonText}>Cancelar rastreo</Text>
           </Pressable>
 
-          <Pressable style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Comprar boleto</Text>
+          <Pressable
+            style={[styles.primaryButton, hasBoarded ? styles.disabledButton : null]}
+            onPress={handleConfirmBoarding}
+            disabled={hasBoarded}
+          >
+            <Text style={styles.primaryButtonText}>
+              {hasBoarded ? "Abordaste" : "Confirmar abordaje"}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -468,6 +639,19 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   stopMarkerText: {
+    color: "#0F2141",
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  boardingMarker: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 2,
+    borderColor: "#FFA70B",
+  },
+  boardingMarkerText: {
     color: "#0F2141",
     fontWeight: "900",
     fontSize: 12,
@@ -605,5 +789,13 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#0F2141",
     fontWeight: "900",
+  },
+  disabledButton: {
+    backgroundColor: "#E7F7EE",
+  },
+  boardedNote: {
+    color: "#087D3B",
+    fontWeight: "900",
+    marginTop: 10,
   },
 });
