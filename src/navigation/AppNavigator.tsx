@@ -4,6 +4,7 @@ import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
 import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
+import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
 import { LoginResponse } from "../services/apiClient";
 
 type AppScreen =
@@ -86,18 +87,13 @@ export default function AppNavigator() {
     );
   }
 
-  if (currentScreen === "driver-home") {
+  if (currentScreen === "driver-home" && session) {
     return (
-      <View style={styles.placeholderScreen}>
-        <Text style={styles.placeholderTitle}>Portal Conductor</Text>
-        <Text style={styles.placeholderText}>
-          Login correcto como conductor. Esta pantalla se conectará después.
-        </Text>
-
-        <Pressable style={styles.placeholderButton} onPress={handleLogout}>
-          <Text style={styles.placeholderButtonText}>Cerrar sesión</Text>
-        </Pressable>
-      </View>
+      <DriverHomeScreen
+        user={session.user}
+        accessToken={session.access_token}
+        onLogout={handleLogout}
+      />
     );
   }
 
