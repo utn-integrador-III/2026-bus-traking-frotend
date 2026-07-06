@@ -129,19 +129,36 @@ function readPublicEnv(key: string): string | undefined {
   return (globalThis as any)?.process?.env?.[key];
 }
 
-function getApiUrl() {
+function getApiUrl(): string {
   const rawApiUrl =
+    readPublicEnv("EXPO_PUBLIC_API_BASE_URL") ||
     readPublicEnv("EXPO_PUBLIC_API_URL") ||
     env.apiBaseUrl;
 
   if (!rawApiUrl) {
     throw new ApiClientError(
       0,
-      "EXPO_PUBLIC_API_URL no está configurada.",
+      "EXPO_PUBLIC_API_BASE_URL o EXPO_PUBLIC_API_URL no está configurada.",
     );
   }
 
-  return rawApiUrl.replace(/\/$/, "");
+  const cleanUrl = rawApiUrl.replace(/\/+$/, "");
+
+  if (cleanUrl.endsWith("/api")) {
+    return cleanUrl;
+  }
+
+  return `${cleanUrl}/api`;
+}
+
+function buildApiUrl(path: string): string {
+  const apiUrl = getApiUrl();
+
+  const cleanPath = path
+    .replace(/^\/+/, "")
+    .replace(/^api\/+/i, "");
+
+  return `${apiUrl}/${cleanPath}`;
 }
 
 function getApiErrorEnvelope(body: ApiErrorBody | null): ApiErrorEnvelope {
@@ -200,7 +217,7 @@ export async function apiRequest<T>(
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(`${getApiUrl()}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     method: options.method || "GET",
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -320,7 +337,7 @@ function formatRouteName(route: PassengerRoute): string {
 export async function loginPassenger(
   payload: LoginRequest,
 ): Promise<LoginResponse> {
-  return apiRequest<LoginResponse>("/api/auth/login", {
+  return apiRequest<LoginResponse>("/auth/login", {
     method: "POST",
     body: payload,
   });
@@ -329,7 +346,7 @@ export async function loginPassenger(
 export async function getPassengerRoutes(
   token?: string,
 ): Promise<PassengerRoute[]> {
-  return apiRequest<PassengerRoute[]>("/api/passenger/routes", {
+  return apiRequest<PassengerRoute[]>("/passenger/routes", {
     method: "GET",
     token,
   });
@@ -338,7 +355,7 @@ export async function getPassengerRoutes(
 export async function getPassengerTrips(
   token?: string,
 ): Promise<PassengerTrip[]> {
-  return apiRequest<PassengerTrip[]>("/api/passenger/trips", {
+  return apiRequest<PassengerTrip[]>("/passenger/trips", {
     method: "GET",
     token,
   });

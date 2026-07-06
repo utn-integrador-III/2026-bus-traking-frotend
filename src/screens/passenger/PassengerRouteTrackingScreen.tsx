@@ -24,6 +24,7 @@ interface PassengerRouteTrackingScreenProps {
   tripId: string;
   accessToken: string;
   onBack: () => void;
+  onCheckout: () => void;
 }
 
 interface LiveBusLocation {
@@ -102,6 +103,7 @@ export default function PassengerRouteTrackingScreen({
   tripId,
   accessToken,
   onBack,
+  onCheckout,
 }: PassengerRouteTrackingScreenProps) {
   const [tripData, setTripData] = useState<PassengerTripTrackingData | null>(null);
   const [liveLocation, setLiveLocation] = useState<LiveBusLocation | null>(null);
@@ -354,7 +356,7 @@ export default function PassengerRouteTrackingScreen({
             <Text style={styles.secondaryButtonText}>Reportar</Text>
           </Pressable>
 
-          <Pressable style={styles.primaryButton}>
+          <Pressable style={styles.primaryButton} onPress={onCheckout}>
             <Text style={styles.primaryButtonText}>Comprar boleto</Text>
           </Pressable>
         </View>

@@ -3,14 +3,19 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
 import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
+import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
+import PassengerTicketScreen from "../screens/passenger/PassengerTicketScreen";
 import { LoginResponse } from "../services/apiClient";
+import { Ticket } from "../services/ticketService";
 
 type AppScreen =
   | "login"
   | "register"
   | "passenger-home"
   | "passenger-tracking"
+  | "passenger-payment"
+  | "passenger-ticket"
   | "driver-home"
   | "admin-dashboard";
 
@@ -18,6 +23,7 @@ export default function AppNavigator() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("login");
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
@@ -43,12 +49,27 @@ export default function AppNavigator() {
   function handleLogout() {
     setSession(null);
     setSelectedTripId(null);
+    setGeneratedTicket(null);
     setCurrentScreen("login");
   }
 
   function handleTrackTrip(tripId: string) {
     setSelectedTripId(tripId);
+    setGeneratedTicket(null);
     setCurrentScreen("passenger-tracking");
+  }
+
+  function handleCheckout() {
+    if (!selectedTripId) {
+      return;
+    }
+
+    setCurrentScreen("passenger-payment");
+  }
+
+  function handlePaymentSuccess(ticket: Ticket) {
+    setGeneratedTicket(ticket);
+    setCurrentScreen("passenger-ticket");
   }
 
   if (currentScreen === "register") {
@@ -82,6 +103,29 @@ export default function AppNavigator() {
         tripId={selectedTripId}
         accessToken={session.access_token}
         onBack={() => setCurrentScreen("passenger-home")}
+        onCheckout={handleCheckout}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-payment" && session && selectedTripId) {
+    return (
+      <PassengerPaymentScreen
+        tripId={selectedTripId}
+        accessToken={session.access_token}
+        isSeniorPassenger={false}
+        onBack={() => setCurrentScreen("passenger-tracking")}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-ticket" && generatedTicket) {
+    return (
+      <PassengerTicketScreen
+        ticket={generatedTicket}
+        onBackHome={() => setCurrentScreen("passenger-home")}
+        onBackToTrip={() => setCurrentScreen("passenger-tracking")}
       />
     );
   }
