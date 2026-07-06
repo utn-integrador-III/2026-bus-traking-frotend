@@ -433,3 +433,152 @@ export async function getPassengerTripTrackingData(
     geojson: normalizeGeoJson(route.geometry_geojson),
   };
 }
+
+export interface DriverTrip {
+  id: string;
+  route_id: string;
+  bus_id: string;
+  driver_id?: string;
+  departure_time: string;
+  arrival_time?: string | null;
+  status: TripStatus;
+  started_at?: string | null;
+  ended_at?: string | null;
+}
+
+export interface DriverLocationPayload {
+  latitude: number;
+  longitude: number;
+  speed?: number;
+  heading?: number;
+  recorded_at?: string;
+}
+
+export interface DriverLocationRecord {
+  id?: number;
+  trip_id: string;
+  latitude: number;
+  longitude: number;
+  speed: number | null;
+  heading: number | null;
+  recorded_at: string;
+}
+
+export interface LatLngPoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface GoogleRouteResult {
+  distance_meters?: number;
+  duration?: string;
+  encoded_polyline?: string | null;
+}
+
+export async function getAssignedDriverTrips(
+  token?: string,
+): Promise<DriverTrip[]> {
+  return apiRequest<DriverTrip[]>("/api/driver/trips", {
+    method: "GET",
+    token,
+  });
+}
+
+export async function getActiveDriverTrip(
+  token?: string,
+): Promise<DriverTrip | null> {
+  return apiRequest<DriverTrip | null>("/api/driver/trips/active", {
+    method: "GET",
+    token,
+  });
+}
+
+export async function startDriverTrip(
+  tripId: string,
+  token?: string,
+): Promise<DriverTrip> {
+  return apiRequest<DriverTrip>(`/api/driver/trips/${tripId}/start`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function completeDriverTrip(
+  tripId: string,
+  token?: string,
+): Promise<DriverTrip> {
+  return apiRequest<DriverTrip>(`/api/driver/trips/${tripId}/complete`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelDriverTrip(
+  tripId: string,
+  token?: string,
+): Promise<DriverTrip> {
+  return apiRequest<DriverTrip>(`/api/driver/trips/${tripId}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function reportDriverLocation(
+  tripId: string,
+  payload: DriverLocationPayload,
+  token?: string,
+): Promise<DriverLocationRecord> {
+  return apiRequest<DriverLocationRecord>(
+    `/api/driver/trips/${tripId}/location`,
+    {
+      method: "POST",
+      token,
+      body: payload,
+    },
+  );
+}
+
+function parseGoogleDurationToMinutes(duration?: string): number | null {
+  if (!duration) {
+    return null;
+  }
+
+  const match = String(duration).match(/([\d.]+)\s*s/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const seconds = Number(match[1]);
+
+  if (!Number.isFinite(seconds)) {
+    return null;
+  }
+
+  return Math.max(1, Math.round(seconds / 60));
+}
+
+export async function computeGoogleRoute(
+  origin: LatLngPoint,
+  destination: LatLngPoint,
+  token?: string,
+): Promise<GoogleRouteResult> {
+  return apiRequest<GoogleRouteResult>("/api/google/routes/compute", {
+    method: "POST",
+    token,
+    body: { origin, destination },
+  });
+}
+
+export async function getTripEtaMinutes(
+  origin: LatLngPoint,
+  destination: LatLngPoint,
+  token?: string,
+): Promise<number | null> {
+  try {
+    const route = await computeGoogleRoute(origin, destination, token);
+    return parseGoogleDurationToMinutes(route.duration);
+  } catch {
+    return null;
+  }
+}

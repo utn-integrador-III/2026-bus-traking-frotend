@@ -1,4 +1,5 @@
 import "react-native-url-polyfill/auto";
+import "./src/services/driverLocationService";
 
 import React from "react";
 import { StatusBar } from "expo-status-bar";

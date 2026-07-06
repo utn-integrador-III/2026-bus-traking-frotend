@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
+import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
+import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
 import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
+import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScreen";
 import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
-import PassengerTicketScreen from "../screens/passenger/PassengerTicketScreen";
 import { LoginResponse } from "../services/apiClient";
 import { Ticket } from "../services/ticketService";
 
@@ -15,7 +17,8 @@ type AppScreen =
   | "passenger-home"
   | "passenger-tracking"
   | "passenger-payment"
-  | "passenger-ticket"
+  | "passenger-my-tickets"
+  | "passenger-boarding-pass"
   | "driver-home"
   | "admin-dashboard";
 
@@ -69,7 +72,18 @@ export default function AppNavigator() {
 
   function handlePaymentSuccess(ticket: Ticket) {
     setGeneratedTicket(ticket);
-    setCurrentScreen("passenger-ticket");
+    setSelectedTripId(ticket.trip_id);
+    setCurrentScreen("passenger-boarding-pass");
+  }
+
+  function handleOpenMyTickets() {
+    setCurrentScreen("passenger-my-tickets");
+  }
+
+  function handleOpenExistingTicket(ticket: Ticket) {
+    setGeneratedTicket(ticket);
+    setSelectedTripId(ticket.trip_id);
+    setCurrentScreen("passenger-boarding-pass");
   }
 
   if (currentScreen === "register") {
@@ -93,6 +107,7 @@ export default function AppNavigator() {
         accessToken={session.access_token}
         onLogout={handleLogout}
         onTrackTrip={handleTrackTrip}
+        onOpenTickets={handleOpenMyTickets}
       />
     );
   }
@@ -120,9 +135,19 @@ export default function AppNavigator() {
     );
   }
 
-  if (currentScreen === "passenger-ticket" && generatedTicket) {
+  if (currentScreen === "passenger-my-tickets" && session) {
     return (
-      <PassengerTicketScreen
+      <PassengerMyTicketsScreen
+        accessToken={session.access_token}
+        onBack={() => setCurrentScreen("passenger-home")}
+        onOpenTicket={handleOpenExistingTicket}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-boarding-pass" && generatedTicket) {
+    return (
+      <PassengerBoardingPassScreen
         ticket={generatedTicket}
         onBackHome={() => setCurrentScreen("passenger-home")}
         onBackToTrip={() => setCurrentScreen("passenger-tracking")}
@@ -130,18 +155,13 @@ export default function AppNavigator() {
     );
   }
 
-  if (currentScreen === "driver-home") {
+  if (currentScreen === "driver-home" && session) {
     return (
-      <View style={styles.placeholderScreen}>
-        <Text style={styles.placeholderTitle}>Portal Conductor</Text>
-        <Text style={styles.placeholderText}>
-          Login correcto como conductor. Esta pantalla se conectará después.
-        </Text>
-
-        <Pressable style={styles.placeholderButton} onPress={handleLogout}>
-          <Text style={styles.placeholderButtonText}>Cerrar sesión</Text>
-        </Pressable>
-      </View>
+      <DriverHomeScreen
+        user={session.user}
+        accessToken={session.access_token}
+        onLogout={handleLogout}
+      />
     );
   }
 

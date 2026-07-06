@@ -12,13 +12,28 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bustrack.app"
+      "bundleIdentifier": "com.bustrack.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationWhenInUseUsageDescription": "Se usa tu ubicacion para transmitir la posicion del bus en tiempo real.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Se usa tu ubicacion en segundo plano para seguir transmitiendo la posicion del bus aunque la app este minimizada o el telefono bloqueado."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#14213d"
       },
-      "package": "com.bustrack.app"
+      "package": "com.bustrack.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -26,6 +41,15 @@
         {
           "cameraPermission": "Permite usar la camara para tomar la foto de la cedula.",
           "photosPermission": "Permite seleccionar la foto de la cedula."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Se usa tu ubicacion en segundo plano para seguir transmitiendo la posicion del bus aunque la app este minimizada o el telefono bloqueado.",
+          "locationWhenInUsePermission": "Se usa tu ubicacion para transmitir la posicion del bus en tiempo real.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "@react-native-community/datetimepicker",

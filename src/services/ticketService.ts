@@ -28,3 +28,10 @@ export async function checkoutTicket(
     token,
   });
 }
+
+export async function getMyTickets(token: string): Promise<Ticket[]> {
+  return apiRequest<Ticket[]>("/tickets/my", {
+    method: "GET",
+    token,
+  });
+}

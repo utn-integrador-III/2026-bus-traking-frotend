@@ -19,6 +19,7 @@ interface PassengerHomeScreenProps {
   accessToken: string;
   onLogout: () => void;
   onTrackTrip: (tripId: string) => void;
+  onOpenTickets: () => void;
 }
 
 export default function PassengerHomeScreen({
@@ -26,6 +27,7 @@ export default function PassengerHomeScreen({
   accessToken,
   onLogout,
   onTrackTrip,
+  onOpenTickets,
 }: PassengerHomeScreenProps) {
   const [trips, setTrips] = useState<PassengerTripCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +50,18 @@ export default function PassengerHomeScreen({
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function getStatusStyle(status: string) {
+    if (status === "Delayed") {
+      return styles.delayedBadge;
+    }
+
+    if (status === "In_Progress" || status === "In Progress") {
+      return styles.progressBadge;
+    }
+
+    return styles.scheduledBadge;
   }
 
   useEffect(() => {
@@ -131,11 +145,7 @@ export default function PassengerHomeScreen({
                   <Text
                     style={[
                       styles.statusBadge,
-                      item.status === "Delayed"
-                        ? styles.delayedBadge
-                        : item.status === "In Progress"
-                          ? styles.progressBadge
-                          : styles.scheduledBadge,
+                      getStatusStyle(String(item.status)),
                     ]}
                   >
                     {item.badgeText}
@@ -151,7 +161,11 @@ export default function PassengerHomeScreen({
         <View style={styles.bottomTabs}>
           <Text style={styles.activeTab}>Inicio</Text>
           <Text style={styles.tab}>Rutas</Text>
-          <Text style={styles.tab}>Boletos</Text>
+
+          <Pressable onPress={onOpenTickets}>
+            <Text style={styles.tab}>Boletos</Text>
+          </Pressable>
+
           <Text style={styles.tab}>Perfil</Text>
         </View>
       </View>
