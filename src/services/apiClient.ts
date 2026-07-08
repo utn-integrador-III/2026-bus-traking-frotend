@@ -280,7 +280,7 @@ function normalizeGeoJson(source: unknown): GeoJsonFeature {
   };
 }
 
-function buildRouteCode(route: PassengerRoute): string {
+function buildRouteCode(route: { name?: string | null; id: string }): string {
   const possibleCode = route.name?.match(/\b[A-Z0-9]{2,6}\b/i)?.[0];
 
   if (possibleCode) {
@@ -581,4 +581,129 @@ export async function getTripEtaMinutes(
   } catch {
     return null;
   }
+}
+
+export interface TripPreviewRaw {
+  id: string;
+  route_id: string;
+  bus_id: string;
+  departure_time: string;
+  arrival_time?: string | null;
+  status: TripStatus;
+  route: {
+    id: string;
+    name: string;
+    origin: string;
+    destination: string;
+    geometry_geojson: string | Record<string, unknown> | null;
+    is_active: boolean;
+  } | null;
+}
+
+export interface StopRaw {
+  id: string;
+  route_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  stop_order: number;
+}
+
+export interface WatchStopRequest {
+  stop_id: string;
+}
+
+export interface WatchStopResponse {
+  id: string;
+  user_id: string;
+  trip_id: string;
+  stop_id: string;
+  status: string;
+  created_at: string;
+}
+
+export async function getPassengerTrackingTripsPreview(
+  token?: string,
+): Promise<TripPreviewRaw[]> {
+  return apiRequest<TripPreviewRaw[]>(
+    "/passenger/tracking/trips/preview",
+    {
+      method: "GET",
+      token,
+    },
+  );
+}
+
+export async function watchStop(
+  tripId: string,
+  stopId: string,
+  token?: string,
+): Promise<WatchStopResponse> {
+  return apiRequest<WatchStopResponse>(
+    `/passenger/tracking/trips/${tripId}/watch-stop`,
+    {
+      method: "POST",
+      token,
+      body: { stop_id: stopId },
+    },
+  );
+}
+
+export async function getTripStops(
+  routeId: string,
+  token?: string,
+): Promise<StopRaw[]> {
+  return apiRequest<StopRaw[]>(`/passenger/stops?route_id=${routeId}`, {
+    method: "GET",
+    token,
+  });
+}
+
+export interface PassHomeTripsPreview {
+  tripId: string;
+  routeId: string;
+  busId: string;
+  code: string;
+  name: string;
+  origin: string;
+  destination: string;
+  status: TripStatus;
+  departureTime: string;
+  badgeText: string;
+  etaText: string;
+  geojson: string | null;
+  routeName: string;
+}
+
+export async function getPassengerHomeTripsPreview(
+  token?: string,
+): Promise<PassHomeTripsPreview[]> {
+  const previews = await getPassengerTrackingTripsPreview(token);
+
+  return previews.map((trip) => {
+    const route = trip.route;
+
+    return {
+      tripId: trip.id,
+      routeId: trip.route_id,
+      busId: trip.bus_id,
+      code: route ? buildRouteCode(route) : trip.id.slice(0, 4).toUpperCase(),
+      name: route
+        ? `${route.origin} → ${route.destination}`
+        : "Viaje disponible",
+      origin: route?.origin || "Origen",
+      destination: route?.destination || "Destino",
+      status: trip.status,
+      departureTime: trip.departure_time,
+      badgeText: buildBadgeText(trip.status),
+      etaText: buildEtaText(trip.status),
+      geojson:
+        route?.geometry_geojson
+          ? typeof route.geometry_geojson === "string"
+            ? route.geometry_geojson
+            : JSON.stringify(route.geometry_geojson)
+          : null,
+      routeName: route?.name || "Ruta disponible",
+    };
+  });
 }

@@ -1,10 +1,29 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {ActivityIndicator, Alert, Pressable, SafeAreaView, StyleSheet, Text, View,} from "react-native";
-import MapView, {AnimatedRegion, Circle, LatLng, Marker, Polyline,} from "react-native-maps";
-import {getPassengerTripTrackingData, getTripEtaMinutes, PassengerTripTrackingData, TripStatus,} from "../../services/apiClient";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import MapView, {
+  AnimatedRegion,
+  LatLng,
+  Marker,
+  Polyline,
+} from "react-native-maps";
+import {
+  getPassengerTripTrackingData,
+  getTripEtaMinutes,
+  PassengerTripTrackingData,
+  TripStatus,
+  watchStop,
+} from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
+import { BOARDING_RADIUS_METERS } from "../../config/constants";
 
-const BOARDING_RADIUS_METERS = 150;
 const ETA_REFRESH_INTERVAL_MS = 20000;
 
 interface PassengerRouteTrackingScreenProps {
@@ -21,11 +40,9 @@ function haversineMeters(a: LatLng, b: LatLng): number {
   const dLng = toRad(b.longitude - a.longitude);
   const lat1 = toRad(a.latitude);
   const lat2 = toRad(b.latitude);
-
   const h =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
-
   return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -38,6 +55,14 @@ interface LiveBusLocation {
   updatedAt: string;
 }
 
+interface StopPoint {
+  coordinate: LatLng;
+  index: number;
+  label: string;
+  isBoarding: boolean;
+  isDestination: boolean;
+}
+
 function geoJsonToLatLng(route: PassengerTripTrackingData): LatLng[] {
   return route.geojson.geometry.coordinates.map(([longitude, latitude]) => ({
     latitude,
@@ -45,12 +70,43 @@ function geoJsonToLatLng(route: PassengerTripTrackingData): LatLng[] {
   }));
 }
 
-function getInitialRegion(points: LatLng[]) {
-  const first = points[0] || {
-    latitude: 9.9281,
-    longitude: -84.0907,
-  };
+function buildStopPoints(coords: LatLng[]): StopPoint[] {
+  if (coords.length === 0) return [];
+  const stops: StopPoint[] = [];
+  stops.push({
+    coordinate: coords[0],
+    index: 0,
+    label: "Abordaje",
+    isBoarding: true,
+    isDestination: false,
+  });
+  if (coords.length > 2) {
+    const step = Math.max(1, Math.floor((coords.length - 2) / 4));
+    for (let i = step; i < coords.length - 1; i += step) {
+      if (stops.length >= 6) break;
+      stops.push({
+        coordinate: coords[i],
+        index: i,
+        label: `Parada ${stops.length}`,
+        isBoarding: false,
+        isDestination: false,
+      });
+    }
+  }
+  if (coords.length > 1) {
+    stops.push({
+      coordinate: coords[coords.length - 1],
+      index: coords.length - 1,
+      label: "Destino",
+      isBoarding: false,
+      isDestination: true,
+    });
+  }
+  return stops;
+}
 
+function getInitialRegion(points: LatLng[]) {
+  const first = points[0] || { latitude: 9.9281, longitude: -84.0907 };
   return {
     latitude: first.latitude,
     longitude: first.longitude,
@@ -61,14 +117,9 @@ function getInitialRegion(points: LatLng[]) {
 
 function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
   const row = payload?.new || payload?.payload || payload;
-
   const latitude = Number(row?.latitude ?? row?.lat);
   const longitude = Number(row?.longitude ?? row?.lng ?? row?.lon);
-
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   return {
     latitude,
     longitude,
@@ -82,23 +133,28 @@ function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
 }
 
 function buildStatusLabel(status: TripStatus): string {
-  if (status === "In Progress") {
-    return "In Progress";
-  }
-
-  if (status === "Delayed") {
-    return "Delayed";
-  }
-
-  if (status === "Stopped") {
-    return "Stopped";
-  }
-
-  if (status === "Scheduled" || status === "Pending") {
-    return "Scheduled";
-  }
-
+  if (status === "Delayed") return "Delayed";
+  if (status === "In Progress") return "In Progress";
+  if (status === "Stopped") return "Stopped";
+  if (status === "Scheduled" || status === "Pending") return "Scheduled";
   return String(status);
+}
+
+function isStopDownstream(stopIdx: number, busIdx: number): boolean {
+  return stopIdx > busIdx;
+}
+
+function findClosestStopIndex(busPos: LatLng, stops: StopPoint[]): number {
+  let minDist = Infinity;
+  let closestIdx = -1;
+  stops.forEach((s, i) => {
+    const d = haversineMeters(busPos, s.coordinate);
+    if (d < minDist) {
+      minDist = d;
+      closestIdx = i;
+    }
+  });
+  return closestIdx;
 }
 
 export default function PassengerRouteTrackingScreen({
@@ -113,6 +169,8 @@ export default function PassengerRouteTrackingScreen({
   const [errorMessage, setErrorMessage] = useState("");
   const [hasBoarded, setHasBoarded] = useState(false);
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
+  const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
+  const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
 
   const animatedCoordinate = useRef(
     new AnimatedRegion({
@@ -127,21 +185,32 @@ export default function PassengerRouteTrackingScreen({
   const missedAlertShown = useRef(false);
   const hasBoardedRef = useRef(false);
   const lastEtaAt = useRef(0);
-  const boardingNodeRef = useRef<LatLng | null>(null);
-  const destinationNodeRef = useRef<LatLng | null>(null);
+  const selectedStopIdxRef = useRef(0);
+  const stopPointsRef = useRef<StopPoint[]>([]);
 
   const routePoints = useMemo(() => {
     return tripData ? geoJsonToLatLng(tripData) : [];
   }, [tripData]);
 
-  const boardingNode = routePoints.length > 0 ? routePoints[0] : null;
-  const destinationNode =
-    routePoints.length > 0 ? routePoints[routePoints.length - 1] : null;
+  const stopPoints = useMemo(() => buildStopPoints(routePoints), [routePoints]);
+
+  const stopPointCoords = useMemo(
+    () => stopPoints.map((sp) => sp.coordinate),
+    [stopPoints],
+  );
+
+  const currentStop = stopPoints[selectedStopIdx] || stopPoints[0] || null;
+
+  const previousStop =
+    selectedStopIdx > 0 ? stopPoints[selectedStopIdx - 1] : null;
 
   useEffect(() => {
-    boardingNodeRef.current = boardingNode;
-    destinationNodeRef.current = destinationNode;
-  }, [boardingNode, destinationNode]);
+    stopPointsRef.current = stopPoints;
+  }, [stopPoints]);
+
+  useEffect(() => {
+    selectedStopIdxRef.current = selectedStopIdx;
+  }, [selectedStopIdx]);
 
   const currentStatus = liveLocation?.status || tripData?.status || "Scheduled";
   const statusLabel = buildStatusLabel(currentStatus);
@@ -170,84 +239,107 @@ export default function PassengerRouteTrackingScreen({
     );
   }
 
-  function triggerMissedBusAlert() {
-    if (missedAlertShown.current) {
-      return;
+  async function handleSelectStop(stop: StopPoint) {
+    setSelectedStopIdx(stop.index);
+    selectedStopIdxRef.current = stop.index;
+    wasInsideBoardingZone.current = false;
+    missedAlertShown.current = false;
+    try {
+      const result = await watchStop(tripId, `stop-${stop.index}`, accessToken);
+      setWatchedStopId(result.stop_id);
+    } catch {
+      setWatchedStopId(`stop-${stop.index}`);
     }
+  }
 
+  function triggerMissedBusAlert() {
+    if (missedAlertShown.current) return;
     missedAlertShown.current = true;
-
-    Alert.alert(
-      "Missed Bus",
-      "El bus cruzó tu nodo de abordaje y todavía no confirmaste tu registro. Podés elegir otro horario.",
-      [
-        {
-          text: "Elegir otro horario",
-          onPress: redirectToScheduleSelection,
-        },
-      ],
-      { cancelable: false },
-    );
+    const stops = stopPointsRef.current;
+    const selIdx = selectedStopIdxRef.current;
+    const downstream = stops.filter((s) => s.index > selIdx && !s.isDestination);
+    if (downstream.length > 0) {
+      Alert.alert(
+        "Bus perdido",
+        `El bus ya pasó tu parada "${stops[selIdx]?.label || "seleccionada"}". ¿Querés elegir otra parada más adelante?`,
+        [
+          {
+            text: "Elegir otra parada",
+            onPress: () => {
+              missedAlertShown.current = false;
+              setSelectedStopIdx(downstream[0].index);
+              selectedStopIdxRef.current = downstream[0].index;
+              wasInsideBoardingZone.current = false;
+            },
+          },
+          {
+            text: "Ver otros horarios",
+            style: "destructive",
+            onPress: redirectToScheduleSelection,
+          },
+        ],
+        { cancelable: false },
+      );
+    } else {
+      Alert.alert(
+        "Última parada superada",
+        "El bus ya pasó todas las paradas. Te recomendamos buscar otro viaje.",
+        [
+          {
+            text: "Ver otros horarios",
+            onPress: redirectToScheduleSelection,
+          },
+        ],
+        { cancelable: false },
+      );
+    }
   }
 
   function evaluateBoardingGeofence(busPoint: LatLng) {
-    const boarding = boardingNodeRef.current;
-
-    if (!boarding || hasBoardedRef.current) {
-      return;
-    }
-
-    const distance = haversineMeters(busPoint, boarding);
+    if (!currentStop || hasBoardedRef.current) return;
+    const distance = haversineMeters(busPoint, currentStop.coordinate);
     const isInside = distance <= BOARDING_RADIUS_METERS;
-
     if (isInside) {
       wasInsideBoardingZone.current = true;
       return;
     }
-
     if (wasInsideBoardingZone.current && !isInside) {
-      wasInsideBoardingZone.current = false;
-      triggerMissedBusAlert();
+      const closestIdx = findClosestStopIndex(busPoint, stopPointsRef.current);
+      if (closestIdx > selectedStopIdxRef.current) {
+        wasInsideBoardingZone.current = false;
+        triggerMissedBusAlert();
+      }
+    }
+    if (!wasInsideBoardingZone.current) {
+      const closestIdx = findClosestStopIndex(busPoint, stopPointsRef.current);
+      if (
+        closestIdx > selectedStopIdxRef.current &&
+        selectedStopIdxRef.current > 0
+      ) {
+        triggerMissedBusAlert();
+      }
     }
   }
 
   async function refreshEta(busPoint: LatLng) {
-    const destination = destinationNodeRef.current;
-
-    if (!destination) {
-      return;
-    }
-
+    const destination =
+      stopPoints.length > 0 ? stopPoints[stopPoints.length - 1].coordinate : null;
+    if (!destination) return;
     const now = Date.now();
-
-    if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) {
-      return;
-    }
-
+    if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) return;
     lastEtaAt.current = now;
-
-    const minutes = await getTripEtaMinutes(
-      busPoint,
-      destination,
-      accessToken,
-    );
-
-    if (minutes !== null) {
-      setLiveEtaMinutes(minutes);
-    }
+    const minutes = await getTripEtaMinutes(busPoint, destination, accessToken);
+    if (minutes !== null) setLiveEtaMinutes(minutes);
   }
 
   function moveBusMarker(nextLocation: LiveBusLocation) {
     setLiveLocation(nextLocation);
-
     const busPoint: LatLng = {
       latitude: nextLocation.latitude,
       longitude: nextLocation.longitude,
     };
-
     evaluateBoardingGeofence(busPoint);
     refreshEta(busPoint);
-
     animatedCoordinate
       .timing({
         latitude: nextLocation.latitude,
@@ -260,26 +352,15 @@ export default function PassengerRouteTrackingScreen({
 
   useEffect(() => {
     let isMounted = true;
-
     async function loadTrip() {
       try {
         setIsLoading(true);
         setErrorMessage("");
-
-        const nextTripData = await getPassengerTripTrackingData(
-          tripId,
-          accessToken,
-        );
-
-        if (!isMounted) {
-          return;
-        }
-
+        const nextTripData = await getPassengerTripTrackingData(tripId, accessToken);
+        if (!isMounted) return;
         setTripData(nextTripData);
-
         const points = geoJsonToLatLng(nextTripData);
         const firstPoint = points[0];
-
         if (firstPoint) {
           animatedCoordinate.setValue({
             latitude: firstPoint.latitude,
@@ -287,7 +368,6 @@ export default function PassengerRouteTrackingScreen({
             latitudeDelta: 0,
             longitudeDelta: 0,
           });
-
           setLiveLocation({
             latitude: firstPoint.latitude,
             longitude: firstPoint.longitude,
@@ -299,38 +379,26 @@ export default function PassengerRouteTrackingScreen({
       } catch (error) {
         if (isMounted) {
           setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : "No se pudo cargar el viaje.",
+            error instanceof Error ? error.message : "No se pudo cargar el viaje.",
           );
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     }
-
     loadTrip();
-
     return () => {
       isMounted = false;
     };
   }, [accessToken, animatedCoordinate, tripId]);
 
   useEffect(() => {
-    if (!tripId) {
-      return;
-    }
-
+    if (!tripId) return;
     const channel = supabase
       .channel(`trip:${tripId}:driver-location`)
       .on("broadcast", { event: "location" }, (payload) => {
         const nextLocation = normalizeRealtimePayload(payload);
-
-        if (nextLocation) {
-          moveBusMarker(nextLocation);
-        }
+        if (nextLocation) moveBusMarker(nextLocation);
       })
       .on(
         "postgres_changes",
@@ -342,18 +410,19 @@ export default function PassengerRouteTrackingScreen({
         },
         (payload) => {
           const nextLocation = normalizeRealtimePayload(payload);
-
-          if (nextLocation) {
-            moveBusMarker(nextLocation);
-          }
+          if (nextLocation) moveBusMarker(nextLocation);
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, [tripId]);
+
+  useEffect(() => {
+    if (!selectedStopIdx) return;
+    watchStop(tripId, `stop-${selectedStopIdx}`, accessToken).catch(() => {});
+  }, []);
 
   if (isLoading) {
     return (
@@ -369,7 +438,6 @@ export default function PassengerRouteTrackingScreen({
       <SafeAreaView style={styles.loadingContainer}>
         <Text style={styles.errorTitle}>No se pudo abrir el rastreo</Text>
         <Text style={styles.errorText}>{errorMessage}</Text>
-
         <Pressable style={styles.errorButton} onPress={onBack}>
           <Text style={styles.errorButtonText}>Volver</Text>
         </Pressable>
@@ -379,56 +447,53 @@ export default function PassengerRouteTrackingScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MapView
-        style={styles.map}
-        initialRegion={getInitialRegion(routePoints)}
-      >
+      <MapView style={styles.map} initialRegion={getInitialRegion(routePoints)}>
         <Polyline
           coordinates={routePoints}
           strokeWidth={5}
           strokeColor="#0F2141"
         />
 
-        {boardingNode ? (
-          <>
-            <Circle
-              center={boardingNode}
-              radius={BOARDING_RADIUS_METERS}
-              strokeColor={hasBoarded ? "#087D3B" : "#FFA70B"}
-              fillColor={
-                hasBoarded ? "rgba(8,125,59,0.12)" : "rgba(255,167,11,0.15)"
-              }
-              strokeWidth={2}
-            />
-
-            <Marker coordinate={boardingNode}>
-              <View style={styles.boardingMarker}>
-                <Text style={styles.boardingMarkerText}>Abordaje</Text>
-              </View>
-            </Marker>
-          </>
-        ) : null}
+        {stopPoints.map((sp, i) => (
+          <Marker
+            key={`stop-${sp.index}`}
+            coordinate={stopPointCoords[i]}
+            onPress={() => handleSelectStop(sp)}
+          >
+            <View
+              style={[
+                styles.stopMarker,
+                selectedStopIdx === sp.index && styles.stopSelected,
+                sp.isDestination && styles.destMarker,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.stopMarkerText,
+                  selectedStopIdx === sp.index && styles.stopSelectedText,
+                ]}
+              >
+                {sp.isBoarding
+                  ? "Abordaje"
+                  : sp.isDestination
+                    ? "Destino"
+                    : `P${sp.index}`}
+              </Text>
+            </View>
+          </Marker>
+        ))}
 
         <Marker.Animated coordinate={animatedCoordinate as any}>
           <View style={styles.busMarker}>
             <Text style={styles.busMarkerText}>{tripData.code}</Text>
           </View>
         </Marker.Animated>
-
-        {routePoints.length > 0 ? (
-          <Marker coordinate={routePoints[routePoints.length - 1]}>
-            <View style={styles.stopMarker}>
-              <Text style={styles.stopMarkerText}>Destino</Text>
-            </View>
-          </Marker>
-        ) : null}
       </MapView>
 
       <View style={styles.topBar}>
         <Pressable style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>←</Text>
         </Pressable>
-
         <View style={styles.topTextBox}>
           <Text style={styles.routeTitle}>Ruta {tripData.code}</Text>
           <Text style={styles.routeSubtitle}>{tripData.name}</Text>
@@ -438,7 +503,6 @@ export default function PassengerRouteTrackingScreen({
       <View style={styles.infoCard}>
         <View style={styles.statusRow}>
           <Text style={styles.routeCode}>{tripData.code}</Text>
-
           <Text
             style={[
               styles.statusBadge,
@@ -460,6 +524,13 @@ export default function PassengerRouteTrackingScreen({
           </Text>
         </Text>
 
+        <View style={styles.stopInfoRow}>
+          <Text style={styles.stopInfoLabel}>Parada seleccionada:</Text>
+          <Text style={styles.stopInfoValue}>
+            {currentStop?.label || "No seleccionada"}
+          </Text>
+        </View>
+
         <Text style={styles.stopText}>
           {tripData.origin} → {tripData.destination}
         </Text>
@@ -471,7 +542,6 @@ export default function PassengerRouteTrackingScreen({
             </Text>
             <Text style={styles.metricLabel}>km/h</Text>
           </View>
-
           <View style={styles.driverBox}>
             <Text style={styles.driverName}>
               {tripData.driverName || "Conductor asignado"}
@@ -490,25 +560,32 @@ export default function PassengerRouteTrackingScreen({
             : "Esperando GPS"}
         </Text>
 
+        {currentStop && !currentStop.isBoarding && !currentStop.isDestination && (
+          <Pressable
+            style={styles.resetStopBtn}
+            onPress={() => handleSelectStop(stopPoints[0])}
+          >
+            <Text style={styles.resetStopBtnText}>
+              Volver a parada de abordaje
+            </Text>
+          </Pressable>
+        )}
+
         {hasBoarded ? (
           <Text style={styles.boardedNote}>Abordaje confirmado ✓</Text>
         ) : null}
 
         <View style={styles.actionsRow}>
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={handleCancelTracking}
-          >
+          <Pressable style={styles.secondaryButton} onPress={handleCancelTracking}>
             <Text style={styles.secondaryButtonText}>Cancelar rastreo</Text>
           </Pressable>
-
           <Pressable style={styles.primaryButton} onPress={onCheckout}>
             <Text style={styles.primaryButtonText}>Comprar boleto</Text>
           </Pressable>
         </View>
 
         <Pressable
-          style={[styles.confirmButton, hasBoarded ? styles.disabledButton : null]}
+          style={[styles.confirmButton, hasBoarded && styles.disabledButton]}
           onPress={handleConfirmBoarding}
           disabled={hasBoarded}
         >
@@ -522,10 +599,7 @@ export default function PassengerRouteTrackingScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F3F4F1",
-  },
+  safeArea: { flex: 1, backgroundColor: "#F3F4F1" },
   loadingContainer: {
     flex: 1,
     backgroundColor: "#F3F4F1",
@@ -533,23 +607,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  loadingText: {
-    color: "#0F2141",
-    marginTop: 12,
-    fontWeight: "700",
-  },
+  loadingText: { color: "#0F2141", marginTop: 12, fontWeight: "700" },
   errorTitle: {
     color: "#0F2141",
     fontSize: 22,
     fontWeight: "900",
     textAlign: "center",
   },
-  errorText: {
-    color: "#697386",
-    textAlign: "center",
-    marginTop: 10,
-    lineHeight: 22,
-  },
+  errorText: { color: "#697386", textAlign: "center", marginTop: 10, lineHeight: 22 },
   errorButton: {
     backgroundColor: "#FFA70B",
     paddingHorizontal: 20,
@@ -557,13 +622,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 20,
   },
-  errorButtonText: {
-    color: "#0F2141",
-    fontWeight: "900",
-  },
-  map: {
-    flex: 1,
-  },
+  errorButtonText: { color: "#0F2141", fontWeight: "900" },
+  map: { flex: 1 },
   topBar: {
     position: "absolute",
     top: 48,
@@ -581,27 +641,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  backButtonText: {
-    color: "#0F2141",
-    fontSize: 24,
-    fontWeight: "900",
-  },
+  backButtonText: { color: "#0F2141", fontSize: 24, fontWeight: "900" },
   topTextBox: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 18,
     padding: 12,
   },
-  routeTitle: {
-    color: "#0F2141",
-    fontSize: 20,
-    fontWeight: "900",
+  routeTitle: { color: "#0F2141", fontSize: 20, fontWeight: "900" },
+  routeSubtitle: { color: "#697386", fontWeight: "700", marginTop: 2 },
+  stopMarker: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 2,
+    borderColor: "#0F2141",
   },
-  routeSubtitle: {
-    color: "#697386",
-    fontWeight: "700",
-    marginTop: 2,
+  stopSelected: {
+    backgroundColor: "#FFA70B",
+    borderColor: "#FFA70B",
   },
+  destMarker: { borderColor: "#087D3B" },
+  stopMarkerText: { color: "#0F2141", fontWeight: "800", fontSize: 10 },
+  stopSelectedText: { color: "#0F2141" },
   busMarker: {
     minWidth: 48,
     height: 34,
@@ -613,36 +676,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#FFFFFF",
   },
-  busMarkerText: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-  stopMarker: {
-    backgroundColor: "#FFA70B",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  stopMarkerText: {
-    color: "#0F2141",
-    fontWeight: "900",
-    fontSize: 12,
-  },
-  boardingMarker: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 2,
-    borderColor: "#FFA70B",
-  },
-  boardingMarkerText: {
-    color: "#0F2141",
-    fontWeight: "900",
-    fontSize: 12,
-  },
+  busMarkerText: { color: "#FFFFFF", fontWeight: "900" },
   infoCard: {
     position: "absolute",
     left: 18,
@@ -662,11 +696,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  routeCode: {
-    color: "#0F2141",
-    fontSize: 22,
-    fontWeight: "900",
-  },
+  routeCode: { color: "#0F2141", fontSize: 22, fontWeight: "900" },
   statusBadge: {
     overflow: "hidden",
     borderRadius: 12,
@@ -674,18 +704,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontWeight: "900",
   },
-  progressBadge: {
-    color: "#087D3B",
-    backgroundColor: "#E7F7EE",
-  },
-  delayedBadge: {
-    color: "#A66100",
-    backgroundColor: "#FFF2D9",
-  },
-  scheduledBadge: {
-    color: "#0F2141",
-    backgroundColor: "#EEF2FF",
-  },
+  progressBadge: { color: "#087D3B", backgroundColor: "#E7F7EE" },
+  delayedBadge: { color: "#A66100", backgroundColor: "#FFF2D9" },
+  scheduledBadge: { color: "#0F2141", backgroundColor: "#EEF2FF" },
   mainText: {
     color: "#0F2141",
     fontSize: 22,
@@ -693,22 +714,21 @@ const styles = StyleSheet.create({
     marginTop: 18,
     lineHeight: 30,
   },
-  highlightText: {
-    color: "#FFA70B",
-    fontSize: 30,
-    fontWeight: "900",
-  },
-  stopText: {
-    color: "#697386",
-    fontSize: 15,
-    fontWeight: "700",
-    marginTop: 6,
-  },
-  metricsRow: {
+  highlightText: { color: "#FFA70B", fontSize: 30, fontWeight: "900" },
+  stopInfoRow: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 18,
+    alignItems: "center",
+    marginTop: 8,
   },
+  stopInfoLabel: { color: "#697386", fontSize: 14, fontWeight: "700" },
+  stopInfoValue: {
+    color: "#0F2141",
+    fontSize: 14,
+    fontWeight: "900",
+    marginLeft: 6,
+  },
+  stopText: { color: "#697386", fontSize: 15, fontWeight: "700", marginTop: 6 },
+  metricsRow: { flexDirection: "row", gap: 12, marginTop: 18 },
   metricBox: {
     width: 92,
     borderRadius: 20,
@@ -716,15 +736,8 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: "center",
   },
-  metricValue: {
-    color: "#0F2141",
-    fontSize: 24,
-    fontWeight: "900",
-  },
-  metricLabel: {
-    color: "#697386",
-    fontWeight: "700",
-  },
+  metricValue: { color: "#0F2141", fontSize: 24, fontWeight: "900" },
+  metricLabel: { color: "#697386", fontWeight: "700" },
   driverBox: {
     flex: 1,
     borderRadius: 20,
@@ -732,27 +745,25 @@ const styles = StyleSheet.create({
     padding: 14,
     justifyContent: "center",
   },
-  driverName: {
-    color: "#0F2141",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  busText: {
-    color: "#697386",
-    marginTop: 4,
-    fontWeight: "600",
-  },
+  driverName: { color: "#0F2141", fontSize: 15, fontWeight: "900" },
+  busText: { color: "#697386", marginTop: 4, fontWeight: "600" },
   updateText: {
     color: "#8A94A6",
     fontSize: 12,
     fontWeight: "700",
     marginTop: 12,
   },
-  actionsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 18,
+  resetStopBtn: {
+    marginTop: 10,
+    paddingVertical: 6,
   },
+  resetStopBtnText: {
+    color: "#0F2141",
+    fontWeight: "800",
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
+  actionsRow: { flexDirection: "row", gap: 12, marginTop: 18 },
   secondaryButton: {
     flex: 1,
     borderRadius: 18,
@@ -761,10 +772,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryButtonText: {
-    color: "#0F2141",
-    fontWeight: "900",
-  },
+  secondaryButtonText: { color: "#0F2141", fontWeight: "900" },
   primaryButton: {
     flex: 1,
     borderRadius: 18,
@@ -781,16 +789,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 12,
   },
-  primaryButtonText: {
-    color: "#0F2141",
-    fontWeight: "900",
-  },
-  disabledButton: {
-    backgroundColor: "#E7F7EE",
-  },
-  boardedNote: {
-    color: "#087D3B",
-    fontWeight: "900",
-    marginTop: 10,
-  },
+  primaryButtonText: { color: "#0F2141", fontWeight: "900" },
+  disabledButton: { backgroundColor: "#E7F7EE" },
+  boardedNote: { color: "#087D3B", fontWeight: "900", marginTop: 10 },
 });
