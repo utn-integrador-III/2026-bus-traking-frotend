@@ -13,7 +13,12 @@ interface TrackingSession {
 }
 
 interface LocationTaskData {
-  locations: Location.LocationObject[];
+  locations?: Location.LocationObject[];
+}
+
+interface BackgroundLocationTaskParams {
+  data?: unknown;
+  error?: unknown;
 }
 
 function toBackendSpeed(speedMetersPerSecond?: number | null): number | undefined {
@@ -62,43 +67,46 @@ async function clearSession(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
 
-TaskManager.defineTask(DRIVER_LOCATION_TASK, async ({ data, error }) => {
-  if (error) {
-    return;
-  }
+TaskManager.defineTask(
+  DRIVER_LOCATION_TASK,
+  async ({ data, error }: BackgroundLocationTaskParams) => {
+    if (error) {
+      return;
+    }
 
-  const payload = data as LocationTaskData | undefined;
-  const locations = payload?.locations;
+    const payload = data as LocationTaskData | undefined;
+    const locations = payload?.locations;
 
-  if (!locations || locations.length === 0) {
-    return;
-  }
+    if (!locations || locations.length === 0) {
+      return;
+    }
 
-  const session = await readSession();
+    const session = await readSession();
 
-  if (!session) {
-    return;
-  }
+    if (!session) {
+      return;
+    }
 
-  const latest = locations[locations.length - 1];
-  const { coords, timestamp } = latest;
+    const latest = locations[locations.length - 1];
+    const { coords, timestamp } = latest;
 
-  try {
-    await reportDriverLocation(
-      session.tripId,
-      {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        speed: toBackendSpeed(coords.speed),
-        heading: toBackendHeading(coords.heading),
-        recorded_at: new Date(timestamp).toISOString(),
-      },
-      session.token,
-    );
-  } catch {
-    // Se ignora un fallo puntual de red; el siguiente tick reintentara el envio.
-  }
-});
+    try {
+      await reportDriverLocation(
+        session.tripId,
+        {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          speed: toBackendSpeed(coords.speed),
+          heading: toBackendHeading(coords.heading),
+          recorded_at: new Date(timestamp).toISOString(),
+        },
+        session.token,
+      );
+    } catch {
+      // A temporary network failure is ignored; the next tracking tick will retry.
+    }
+  },
+);
 
 export async function ensureLocationPermissions(): Promise<boolean> {
   const foreground = await Location.requestForegroundPermissionsAsync();

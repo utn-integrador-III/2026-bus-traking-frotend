@@ -1,26 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import MapView, {
-  AnimatedRegion,
-  Circle,
-  LatLng,
-  Marker,
-  Polyline,
-} from "react-native-maps";
-import {
-  getPassengerTripTrackingData,
-  getTripEtaMinutes,
-  PassengerTripTrackingData,
-  TripStatus,
-} from "../../services/apiClient";
+import {ActivityIndicator, Alert, Pressable, SafeAreaView, StyleSheet, Text, View,} from "react-native";
+import MapView, {AnimatedRegion, Circle, LatLng, Marker, Polyline,} from "react-native-maps";
+import {getPassengerTripTrackingData, getTripEtaMinutes, PassengerTripTrackingData, TripStatus,} from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
 
 const BOARDING_RADIUS_METERS = 150;
@@ -30,6 +11,7 @@ interface PassengerRouteTrackingScreenProps {
   tripId: string;
   accessToken: string;
   onBack: () => void;
+  onCheckout: () => void;
 }
 
 function haversineMeters(a: LatLng, b: LatLng): number {
@@ -123,6 +105,7 @@ export default function PassengerRouteTrackingScreen({
   tripId,
   accessToken,
   onBack,
+  onCheckout,
 }: PassengerRouteTrackingScreenProps) {
   const [tripData, setTripData] = useState<PassengerTripTrackingData | null>(null);
   const [liveLocation, setLiveLocation] = useState<LiveBusLocation | null>(null);
@@ -519,16 +502,20 @@ export default function PassengerRouteTrackingScreen({
             <Text style={styles.secondaryButtonText}>Cancelar rastreo</Text>
           </Pressable>
 
-          <Pressable
-            style={[styles.primaryButton, hasBoarded ? styles.disabledButton : null]}
-            onPress={handleConfirmBoarding}
-            disabled={hasBoarded}
-          >
-            <Text style={styles.primaryButtonText}>
-              {hasBoarded ? "Abordaste" : "Confirmar abordaje"}
-            </Text>
+          <Pressable style={styles.primaryButton} onPress={onCheckout}>
+            <Text style={styles.primaryButtonText}>Comprar boleto</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          style={[styles.confirmButton, hasBoarded ? styles.disabledButton : null]}
+          onPress={handleConfirmBoarding}
+          disabled={hasBoarded}
+        >
+          <Text style={styles.primaryButtonText}>
+            {hasBoarded ? "Abordaste" : "Confirmar abordaje"}
+          </Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -785,6 +772,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFA70B",
     alignItems: "center",
     justifyContent: "center",
+  },
+  confirmButton: {
+    borderRadius: 18,
+    height: 52,
+    backgroundColor: "#FFA70B",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
   },
   primaryButtonText: {
     color: "#0F2141",

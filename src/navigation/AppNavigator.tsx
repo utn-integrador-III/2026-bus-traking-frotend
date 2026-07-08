@@ -2,16 +2,23 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
-import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
-import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
+import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
+import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
+import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScreen";
+import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
+import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
 import { LoginResponse } from "../services/apiClient";
+import { Ticket } from "../services/ticketService";
 
 type AppScreen =
   | "login"
   | "register"
   | "passenger-home"
   | "passenger-tracking"
+  | "passenger-payment"
+  | "passenger-my-tickets"
+  | "passenger-boarding-pass"
   | "driver-home"
   | "admin-dashboard";
 
@@ -19,6 +26,7 @@ export default function AppNavigator() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("login");
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
@@ -44,12 +52,38 @@ export default function AppNavigator() {
   function handleLogout() {
     setSession(null);
     setSelectedTripId(null);
+    setGeneratedTicket(null);
     setCurrentScreen("login");
   }
 
   function handleTrackTrip(tripId: string) {
     setSelectedTripId(tripId);
+    setGeneratedTicket(null);
     setCurrentScreen("passenger-tracking");
+  }
+
+  function handleCheckout() {
+    if (!selectedTripId) {
+      return;
+    }
+
+    setCurrentScreen("passenger-payment");
+  }
+
+  function handlePaymentSuccess(ticket: Ticket) {
+    setGeneratedTicket(ticket);
+    setSelectedTripId(ticket.trip_id);
+    setCurrentScreen("passenger-boarding-pass");
+  }
+
+  function handleOpenMyTickets() {
+    setCurrentScreen("passenger-my-tickets");
+  }
+
+  function handleOpenExistingTicket(ticket: Ticket) {
+    setGeneratedTicket(ticket);
+    setSelectedTripId(ticket.trip_id);
+    setCurrentScreen("passenger-boarding-pass");
   }
 
   if (currentScreen === "register") {
@@ -73,6 +107,7 @@ export default function AppNavigator() {
         accessToken={session.access_token}
         onLogout={handleLogout}
         onTrackTrip={handleTrackTrip}
+        onOpenTickets={handleOpenMyTickets}
       />
     );
   }
@@ -83,6 +118,39 @@ export default function AppNavigator() {
         tripId={selectedTripId}
         accessToken={session.access_token}
         onBack={() => setCurrentScreen("passenger-home")}
+        onCheckout={handleCheckout}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-payment" && session && selectedTripId) {
+    return (
+      <PassengerPaymentScreen
+        tripId={selectedTripId}
+        accessToken={session.access_token}
+        isSeniorPassenger={false}
+        onBack={() => setCurrentScreen("passenger-tracking")}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-my-tickets" && session) {
+    return (
+      <PassengerMyTicketsScreen
+        accessToken={session.access_token}
+        onBack={() => setCurrentScreen("passenger-home")}
+        onOpenTicket={handleOpenExistingTicket}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-boarding-pass" && generatedTicket) {
+    return (
+      <PassengerBoardingPassScreen
+        ticket={generatedTicket}
+        onBackHome={() => setCurrentScreen("passenger-home")}
+        onBackToTrip={() => setCurrentScreen("passenger-tracking")}
       />
     );
   }
