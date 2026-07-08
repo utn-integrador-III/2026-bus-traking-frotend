@@ -62,6 +62,14 @@ export default function AppNavigator() {
     setCurrentScreen("passenger-tracking");
   }
 
+  function handleBackFromTracking() {
+    setCurrentScreen("passenger-home");
+  }
+
+  function handleClearTracking() {
+    setSelectedTripId(null);
+  }
+
   function handleCheckout() {
     if (!selectedTripId) {
       return;
@@ -108,6 +116,8 @@ export default function AppNavigator() {
         onLogout={handleLogout}
         onTrackTrip={handleTrackTrip}
         onOpenTickets={handleOpenMyTickets}
+        trackingTripId={selectedTripId}
+        onClearTracking={handleClearTracking}
       />
     );
   }
@@ -117,7 +127,7 @@ export default function AppNavigator() {
       <PassengerRouteTrackingScreen
         tripId={selectedTripId}
         accessToken={session.access_token}
-        onBack={() => setCurrentScreen("passenger-home")}
+        onBack={handleBackFromTracking}
         onCheckout={handleCheckout}
       />
     );
