@@ -19,7 +19,8 @@
           "fetch"
         ],
         "NSLocationWhenInUseUsageDescription": "Se usa tu ubicacion para transmitir la posicion del bus en tiempo real.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Se usa tu ubicacion en segundo plano para seguir transmitiendo la posicion del bus aunque la app este minimizada o el telefono bloqueado."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Se usa tu ubicacion en segundo plano para seguir transmitiendo la posicion del bus aunque la app este minimizada o el telefono bloqueado.",
+        "NSLocationAlwaysUsageDescription": "Se usa tu ubicacion en segundo plano para seguir transmitiendo la posicion del bus aunque la app este minimizada o el telefono bloqueado."
       }
     },
     "android": {

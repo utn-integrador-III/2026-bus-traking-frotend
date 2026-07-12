@@ -27,6 +27,7 @@ interface DriverHomeScreenProps {
   user: AuthUser;
   accessToken: string;
   onLogout: () => void;
+  onOpenScanner?: () => void;
 }
 
 const STARTABLE_STATUSES = ["Scheduled", "Pending"];
@@ -49,6 +50,7 @@ export default function DriverHomeScreen({
   user,
   accessToken,
   onLogout,
+  onOpenScanner,
 }: DriverHomeScreenProps) {
   const [assignedTrips, setAssignedTrips] = useState<DriverTrip[]>([]);
   const [isTracking, setIsTracking] = useState(false);
@@ -270,10 +272,20 @@ export default function DriverHomeScreen({
               onPress={handleToggleTracking}
               disabled={isBusy}
             >
-              <Text style={styles.primaryButtonText}>
+              <Text style={[styles.primaryButtonText, isTracking ? styles.pauseButtonText : null]}>
                 {isTracking ? "Pausar transmisión" : "Reanudar transmisión"}
               </Text>
             </Pressable>
+
+            {onOpenScanner && (
+              <Pressable
+                style={[styles.primaryButton, styles.scanButton]}
+                onPress={onOpenScanner}
+                disabled={isBusy}
+              >
+                <Text style={styles.scanButtonText}>Escanear Código QR</Text>
+              </Pressable>
+            )}
 
             <View style={styles.rowButtons}>
               <Pressable
@@ -476,8 +488,22 @@ const styles = StyleSheet.create({
   pauseButton: {
     backgroundColor: "#0F2141",
   },
+  pauseButtonText: {
+    color: "#FFFFFF",
+  },
   primaryButtonText: {
     color: "#0F2141",
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  scanButton: {
+    backgroundColor: "#E7F7EE",
+    borderWidth: 1,
+    borderColor: "#087D3B",
+    marginTop: 12,
+  },
+  scanButtonText: {
+    color: "#087D3B",
     fontWeight: "900",
     fontSize: 16,
   },
