@@ -200,8 +200,8 @@ jobs:
 
 #### 3. Deploy Movil (`deploy-mobile.yml`)
 
-Se ejecuta solo en **push a `main`**. Compila la app con EAS Build y publica
-actualizaciones OTA con EAS Update.
+Se ejecuta solo en **push a `main`**. Compila la app con EAS Build (Android + iOS).
+Si tambien se quiere OTA, agregar un paso separado de `eas update` en el workflow.
 
 ```yaml
 name: Deploy Mobile (EAS)
