@@ -35,3 +35,14 @@ export async function getMyTickets(token: string): Promise<Ticket[]> {
     token,
   });
 }
+
+export async function scanTicket(
+  ticketId: string,
+  token: string,
+): Promise<Ticket> {
+  return apiRequest<Ticket>("/tickets/scan", {
+    method: "POST",
+    body: { ticket_id: ticketId },
+    token,
+  });
+}
