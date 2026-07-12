@@ -392,11 +392,9 @@ Supabase es compartido entre backend y frontend. Configurar una sola vez:
 
 ### Actualizar la app movil
 
-- **Cambios de codigo JS/TS (OTA):** Al mergear a `main`, EAS Update publica
-  los cambios sin pasar por las tiendas. Los usuarios reciben la actualizacion
-  al abrir la app.
-- **Cambios nativos (plugins, config):** Requieren rebuild con `eas build` y
-  nueva submission a las tiendas.
+- **Cambios de codigo JS/TS:** Con el workflow actual, al mergear a `main` se ejecuta `eas build` (no OTA).
+- **OTA (EAS Update):** No esta automatizado; ejecutar `eas update` manualmente o agregar un paso en CI/CD.
+- **Cambios nativos (plugins, config):** Requieren rebuild con `eas build` y nueva submission a las tiendas.
 
 ### Rollback
 
