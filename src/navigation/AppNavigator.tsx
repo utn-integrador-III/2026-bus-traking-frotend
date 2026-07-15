@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
+import DriverScannerScreen from "../screens/driver/DriverScannerScreen";
 import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
 import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
 import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScreen";
@@ -20,6 +21,7 @@ type AppScreen =
   | "passenger-my-tickets"
   | "passenger-boarding-pass"
   | "driver-home"
+  | "driver-scanner"
   | "admin-dashboard";
 
 export default function AppNavigator() {
@@ -92,6 +94,10 @@ export default function AppNavigator() {
     setGeneratedTicket(ticket);
     setSelectedTripId(ticket.trip_id);
     setCurrentScreen("passenger-boarding-pass");
+  }
+
+  function handleOpenScanner() {
+    setCurrentScreen("driver-scanner");
   }
 
   if (currentScreen === "register") {
@@ -171,6 +177,16 @@ export default function AppNavigator() {
         user={session.user}
         accessToken={session.access_token}
         onLogout={handleLogout}
+        onOpenScanner={handleOpenScanner}
+      />
+    );
+  }
+
+  if (currentScreen === "driver-scanner" && session) {
+    return (
+      <DriverScannerScreen
+        accessToken={session.access_token}
+        onBack={() => setCurrentScreen("driver-home")}
       />
     );
   }

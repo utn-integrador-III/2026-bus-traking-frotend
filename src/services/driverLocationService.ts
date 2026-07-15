@@ -108,6 +108,8 @@ TaskManager.defineTask(
   },
 );
 
+let foregroundSubscription: Location.LocationSubscription | null = null;
+
 export async function ensureLocationPermissions(): Promise<boolean> {
   const foreground = await Location.requestForegroundPermissionsAsync();
 
@@ -115,54 +117,100 @@ export async function ensureLocationPermissions(): Promise<boolean> {
     return false;
   }
 
-  const background = await Location.requestBackgroundPermissionsAsync();
-
-  return background.status === "granted";
+  try {
+    const background = await Location.requestBackgroundPermissionsAsync();
+    return background.status === "granted";
+  } catch (error) {
+    // In Expo Go on iOS, requesting background permissions throws an Info.plist error.
+    console.warn("Background location permission error (likely Expo Go iOS):", error);
+    return false;
+  }
 }
 
 export async function isDriverTrackingActive(): Promise<boolean> {
-  return Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
+  const backgroundActive = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
+  return backgroundActive || foregroundSubscription !== null;
 }
 
 export async function startDriverTracking(
   tripId: string,
   token: string,
 ): Promise<void> {
-  const granted = await ensureLocationPermissions();
-
-  if (!granted) {
-    throw new Error(
-      "Se requieren permisos de ubicacion en segundo plano para transmitir la ruta.",
-    );
+  const foreground = await Location.requestForegroundPermissionsAsync();
+  if (foreground.status !== "granted") {
+    throw new Error("Se requieren permisos de ubicación para transmitir la ruta.");
   }
 
   await writeSession({ tripId, token });
 
   const alreadyRunning = await isDriverTrackingActive();
-
   if (alreadyRunning) {
-    await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
+    await stopDriverTracking();
   }
 
-  await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
-    accuracy: Location.Accuracy.High,
-    timeInterval: 2000,
-    distanceInterval: 0,
-    pausesUpdatesAutomatically: false,
-    showsBackgroundLocationIndicator: true,
-    activityType: Location.ActivityType.AutomotiveNavigation,
-    foregroundService: {
-      notificationTitle: "Transmitiendo ruta en vivo",
-      notificationBody:
-        "La ubicacion del bus se comparte con los pasajeros mientras el viaje este activo.",
-      notificationColor: "#14213d",
+  let backgroundGranted = false;
+  try {
+    const bgPerm = await Location.requestBackgroundPermissionsAsync();
+    backgroundGranted = bgPerm.status === "granted";
+  } catch (e) {
+    console.warn("No se pudo pedir permiso de fondo. Usando fallback.", e);
+  }
+
+  if (backgroundGranted) {
+    try {
+      await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 2000,
+        distanceInterval: 0,
+        pausesUpdatesAutomatically: false,
+        showsBackgroundLocationIndicator: true,
+        activityType: Location.ActivityType.AutomotiveNavigation,
+        foregroundService: {
+          notificationTitle: "Transmitiendo ruta en vivo",
+          notificationBody: "La ubicación se comparte con los pasajeros.",
+          notificationColor: "#14213d",
+        },
+      });
+      return;
+    } catch (error) {
+      console.warn("Fallo startLocationUpdatesAsync, intentando fallback foreground", error);
+    }
+  }
+
+  // Fallback to foreground tracking (useful for Expo Go iOS)
+  foregroundSubscription = await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 2000,
+      distanceInterval: 0,
     },
-  });
+    async (location) => {
+      try {
+        await reportDriverLocation(
+          tripId,
+          {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            speed: toBackendSpeed(location.coords.speed),
+            heading: toBackendHeading(location.coords.heading),
+            recorded_at: new Date(location.timestamp).toISOString(),
+          },
+          token,
+        );
+      } catch (err) {
+        // Ignore network errors
+      }
+    }
+  );
 }
 
 export async function stopDriverTracking(): Promise<void> {
-  const running = await isDriverTrackingActive();
-
+  if (foregroundSubscription) {
+    foregroundSubscription.remove();
+    foregroundSubscription = null;
+  }
+  
+  const running = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
   if (running) {
     await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
   }
