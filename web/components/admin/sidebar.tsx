@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { LogoutButton } from "@/components/admin/logout-button";
+import type { SessionUser } from "@/lib/api/types";
 import type { IconName } from "@bustrack/design";
 
 type NavItem = {
@@ -18,7 +20,13 @@ const navItems: NavItem[] = [
   { href: "/incidents", label: "Alertas", icon: "alertTriangle" },
 ];
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function Sidebar({
+  user,
+  onNavigate,
+}: {
+  user: SessionUser;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -60,24 +68,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t border-white/10 px-4 py-4">
         <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-600 text-on-dark-secondary">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-600 text-on-dark-secondary">
             <Icon name="user" size={20} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-md font-bold text-on-dark">
-              Admin BusTrack
+            <div
+              title={user.name ?? user.email}
+              className="truncate text-md font-bold text-on-dark"
+            >
+              {user.name ?? "Administrador"}
             </div>
-            <div className="truncate text-xs text-on-dark-muted">
-              admin@bustrack.cr
+            <div title={user.email} className="truncate text-xs text-on-dark-muted">
+              {user.email}
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Cerrar sesión"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-on-dark-muted hover:bg-on-dark/10 hover:text-on-dark"
-          >
-            <Icon name="logout" size={18} />
-          </button>
+          <LogoutButton />
         </div>
       </div>
     </div>
