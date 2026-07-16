@@ -33,10 +33,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await writeSession(
-      { access_token: login.access_token, user: login.user },
-      login.expires_in,
-    );
+    await writeSession(login.access_token, login.expires_in);
 
     return NextResponse.json({ user: login.user });
   } catch (error) {

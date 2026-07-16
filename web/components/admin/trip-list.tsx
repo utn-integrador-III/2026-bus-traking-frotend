@@ -75,7 +75,9 @@ export function TripList({
               <p title={route} className="min-w-0 truncate text-md font-bold text-brand">
                 {route}
               </p>
-              <Badge tone={statusTone[trip.status]}>{statusLabel[trip.status]}</Badge>
+              <Badge tone={statusTone[trip.status] ?? "neutral"}>
+                {statusLabel[trip.status] ?? trip.status}
+              </Badge>
             </div>
             <p title={driver} className="mt-1 truncate text-xs text-text-secondary">
               {driver} · sale {formatTime(trip.departure_time)}

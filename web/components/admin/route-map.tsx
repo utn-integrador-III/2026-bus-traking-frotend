@@ -208,8 +208,8 @@ export function RouteMap({
       {suspicious.length > 0 ? (
         <p className="mt-2 rounded-lg bg-warning-bg px-3 py-2 text-xs font-bold text-warning">
           {suspicious.length === 1
-            ? `La ruta “${suspicious[0].route.name}” mide ${suspicious[0].km.toFixed(0)} km en línea recta: su geometry_geojson parece dato de prueba inválido.`
-            : `${suspicious.length} rutas superan los ${IMPLAUSIBLE_LENGTH_KM} km en línea recta: su geometry_geojson parece dato de prueba inválido.`}
+            ? `La ruta “${suspicious[0].route.name}” mide ${suspicious[0].km.toFixed(0)} km de recorrido: su geometry_geojson parece dato de prueba inválido.`
+            : `${suspicious.length} rutas superan los ${IMPLAUSIBLE_LENGTH_KM} km de recorrido: su geometry_geojson parece dato de prueba inválido.`}
         </p>
       ) : null}
     </div>

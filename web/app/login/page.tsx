@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { LoginForm } from "./login-form";
+import { readSession } from "@/lib/auth/session";
 import type { IconName } from "@bustrack/design";
 
 const features: { icon: IconName; title: string; text: string }[] = [
@@ -33,6 +35,11 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string | string[] }>;
 }) {
+  const session = await readSession();
+  if (session?.user.role === "Admin") {
+    redirect("/dashboard");
+  }
+
   const params = await searchParams;
   const next = safeNext(params.next);
 

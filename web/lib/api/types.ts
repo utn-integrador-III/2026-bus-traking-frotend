@@ -72,6 +72,18 @@ export type LoginResponse = {
   capabilities: string[];
 };
 
+export type SessionResponse = {
+  user_id: string;
+  email: string;
+  role: Role | null;
+  capabilities: string[];
+};
+
+export type SessionPayload = {
+  access_token: string;
+  user: SessionUser;
+};
+
 export type ApiErrorBody = {
   error: { code: string; message: string; details?: unknown };
 };
