@@ -65,6 +65,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: [build]
+    env:
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000/api"
+      NEXT_PUBLIC_SUPABASE_URL: "https://ci.example.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-dummy-anon-key"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
