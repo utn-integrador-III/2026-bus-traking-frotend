@@ -1,4 +1,8 @@
 import { env } from "../config/env";
+import type {
+  PassengerIncidentDraft,
+  PassengerIncidentResponse,
+} from "../types/incident.types";
 
 export type UserRole = "Passenger" | "Driver" | "Admin";
 
@@ -357,6 +361,17 @@ export async function getPassengerTrips(
 ): Promise<PassengerTrip[]> {
   return apiRequest<PassengerTrip[]>("/passenger/trips", {
     method: "GET",
+    token,
+  });
+}
+
+export async function createPassengerIncident(
+  payload: PassengerIncidentDraft,
+  token?: string,
+): Promise<PassengerIncidentResponse> {
+  return apiRequest<PassengerIncidentResponse>("/passenger/incidents", {
+    method: "POST",
+    body: payload,
     token,
   });
 }

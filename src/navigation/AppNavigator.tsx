@@ -9,6 +9,7 @@ import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
 import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScreen";
 import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
+import { useOfflineIncidentSync } from "../hooks/useOfflineIncidentSync";
 import { LoginResponse } from "../services/apiClient";
 import { Ticket } from "../services/ticketService";
 
@@ -29,6 +30,8 @@ export default function AppNavigator() {
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
+
+  useOfflineIncidentSync(session);
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);

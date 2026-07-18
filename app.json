@@ -54,6 +54,7 @@
         }
       ],
       "@react-native-community/datetimepicker",
+      "expo-sqlite",
       "expo-web-browser"
     ]
   }
