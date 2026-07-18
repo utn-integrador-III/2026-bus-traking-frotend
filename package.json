@@ -1,0 +1,53 @@
+{
+  "name": "2026-bus-tracking-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo frontend Bus Tracking: app movil React Native (raiz, en construccion) + web Next.js en web/ + paquete de diseno compartido en packages/design. La raiz aloja el tooling compartido (Husky + automatizaciones).",
+  "main": "node_modules/expo/AppEntry.js",
+  "workspaces": [
+    "web",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "npx expo start",
+    "android": "npx expo start --android",
+    "ios": "npx expo start --ios",
+    "mobile:typecheck": "tsc -p tsconfig.mobile.json --noEmit",
+    "prepare": "husky",
+    "design:typecheck": "npm run typecheck -w @bustrack/design",
+    "web:dev": "npm run dev -w web",
+    "web:build": "npm run build -w web",
+    "web:lint": "npm run lint -w web",
+    "web:typecheck": "npm run typecheck -w web",
+    "web:test": "npm run test -w web",
+    "web:strip:dry": "npm run strip:dry -w web",
+    "web:strip:apply": "npm run strip:apply -w web",
+    "web:env:check": "npm run env:check -w web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "^8.4.4",
+    "@supabase/supabase-js": "^2.49.8",
+    "expo": "~54.0.35",
+    "expo-camera": "~17.0.10",
+    "expo-font": "~14.0.12",
+    "expo-image-picker": "~17.0.11",
+    "expo-linking": "~8.0.12",
+    "expo-location": "~19.0.8",
+    "expo-status-bar": "~3.0.9",
+    "expo-task-manager": "~14.0.9",
+    "expo-web-browser": "~15.0.11",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-maps": "1.20.1",
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-svg": "15.12.1",
+    "react-native-url-polyfill": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "husky": "^9.1.7",
+    "typescript": "~5.9.2"
+  }
+}

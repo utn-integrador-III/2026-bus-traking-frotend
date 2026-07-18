@@ -1,0 +1,109 @@
+/* @bustrack/design — binding para Tailwind v4 (espejo de src/tokens/*).
+   Importar en la app DESPUES de `@import "tailwindcss";`.
+   La fuente real (Plus Jakarta Sans) la carga cada app: web via next/font
+   exponiendo --font-jakarta; RN via expo-font. */
+
+@theme {
+  --font-sans: var(--font-jakarta, "Plus Jakarta Sans"), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-navy: #14213d;
+  --color-navy-50: #eef1f7;
+  --color-navy-600: #29447e;
+  --color-navy-700: #1f3357;
+  --color-navy-800: #1b2c4f;
+  --color-navy-900: #101b31;
+
+  --color-amber: #fca311;
+  --color-amber-soft: #fff7ea;
+  --color-amber-soft-alt: #fff1da;
+  --color-amber-border: #fde2b3;
+  --color-amber-text: #a16402;
+
+  --color-brand: #14213d;
+  --color-accent: #fca311;
+
+  --color-bg: #e8e9e6;
+  --color-fg: #14213d;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f4f5f2;
+
+  --color-text: #14213d;
+  --color-text-secondary: #8a8a8a;
+  --color-text-muted: #b0b3ac;
+  --color-on-dark: #ffffff;
+  --color-on-dark-secondary: #beccea;
+  --color-on-dark-muted: #8e9bbd;
+
+  --color-border: #e2e3df;
+  --color-border-subtle: #e6e6e3;
+  --color-divider: #ededed;
+
+  --color-passenger: #fca311;
+  --color-driver: #3e67bf;
+  --color-admin: #7e99d5;
+
+  --color-success: #1f8a4c;
+  --color-success-bg: #e7f4ec;
+  --color-warning: #a16402;
+  --color-warning-bg: #fff1da;
+  --color-warning-border: #fde2b3;
+  --color-danger: #c0392b;
+  --color-danger-bg: #fdeceb;
+  --color-danger-border: #f5cfca;
+  --color-info: #3e67bf;
+  --color-info-bg: #eef1f7;
+
+  --color-map-route: #fca311;
+  --color-map-building: #dde7d9;
+  --color-map-grid: #f5f6f3;
+  --color-map-land: #e9ebe7;
+
+  --color-input-bg: #fafafa;
+  --color-input-border: #e6e6e3;
+  --color-input-placeholder: #9a9a9a;
+
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius-md: 11px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-3xl: 26px;
+  --radius-frame: 30px;
+  --radius-full: 999px;
+
+  --shadow-card: 0 22px 50px -26px rgba(20, 33, 61, 0.42),
+    0 4px 14px -8px rgba(20, 33, 61, 0.16);
+  --shadow-card-soft: 0 8px 22px -18px rgba(20, 33, 61, 0.2);
+  --shadow-floating: 0 8px 20px -8px rgba(20, 33, 61, 0.3);
+  --shadow-sheet: 0 -14px 40px -16px rgba(20, 33, 61, 0.22);
+  --shadow-button: 0 10px 22px -10px rgba(252, 163, 17, 0.6);
+
+  --text-micro: 9px;
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-2xl: 18px;
+  --text-3xl: 20px;
+  --text-4xl: 22px;
+  --text-5xl: 26px;
+  --text-6xl: 30px;
+  --text-hero: 44px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  --tracking-tighter: -0.025em;
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-wide: 0.06em;
+  --tracking-widest: 0.18em;
+}
