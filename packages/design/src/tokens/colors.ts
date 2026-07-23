@@ -1,0 +1,46 @@
+export const palette = {
+  navy: {
+    50: "#eef1f7",
+    600: "#29447e",
+    700: "#1f3357",
+    800: "#1b2c4f",
+    900: "#101b31",
+    DEFAULT: "#14213d",
+  },
+  amber: {
+    soft: "#fff7ea",
+    softAlt: "#fff1da",
+    border: "#fde2b3",
+    text: "#a16402",
+    DEFAULT: "#fca311",
+  },
+  driver: "#3e67bf",
+  admin: "#7e99d5",
+  neutral: {
+    0: "#ffffff",
+    50: "#fafbf9",
+    100: "#f7f8f5",
+    150: "#f4f5f2",
+    200: "#ededed",
+    250: "#e8e9e6",
+    300: "#e6e6e3",
+    350: "#e2e3df",
+    400: "#c4c4c4",
+    500: "#b0b3ac",
+    600: "#8a8a8a",
+    700: "#5c5c5c",
+  },
+  onDark: {
+    primary: "#ffffff",
+    secondary: "#beccea",
+    muted: "#8e9bbd",
+  },
+  success: { DEFAULT: "#1f8a4c", bg: "#e7f4ec", bright: "#3ad07a" },
+  warning: { DEFAULT: "#a16402", bg: "#fff1da", border: "#fde2b3" },
+  danger: { DEFAULT: "#c0392b", bg: "#fdeceb", border: "#f5cfca", bright: "#ff6b5e" },
+  info: { DEFAULT: "#3e67bf", bg: "#eef1f7" },
+  map: { route: "#fca311", building: "#dde7d9", grid: "#f5f6f3", land: "#e9ebe7" },
+  input: { bg: "#fafafa", border: "#e6e6e3", placeholder: "#9a9a9a" },
+} as const;
+
+export type Palette = typeof palette;
