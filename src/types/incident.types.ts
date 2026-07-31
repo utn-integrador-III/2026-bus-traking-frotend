@@ -22,7 +22,9 @@ export interface OfflineIncidentQueueItem {
   payload: PassengerIncidentDraft;
   createdAt: string;
   attemptCount: number;
+  maxAttempts: number;
   lastAttemptAt: string | null;
+  nextRetryAt: string | null;
   lastError: string | null;
 }
 

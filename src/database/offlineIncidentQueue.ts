@@ -14,7 +14,9 @@ type OfflineIncidentRow = {
   longitude: number;
   created_at: string;
   attempt_count: number;
+  max_attempts: number;
   last_attempt_at: string | null;
+  next_retry_at: string | null;
   last_error: string | null;
 };
 
@@ -37,13 +39,28 @@ async function createDatabase() {
       longitude REAL NOT NULL,
       created_at TEXT NOT NULL,
       attempt_count INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 5,
       last_attempt_at TEXT,
+      next_retry_at TEXT,
       last_error TEXT
     );
     CREATE INDEX IF NOT EXISTS offline_incident_queue_user_created_idx
       ON offline_incident_queue (user_id, created_at, id);
-    PRAGMA user_version = 1;
+    CREATE INDEX IF NOT EXISTS offline_incident_queue_retry_idx
+      ON offline_incident_queue (user_id, next_retry_at, created_at);
   `);
+
+  const { user_version: currentVersion } = await database.getFirstAsync<{
+    user_version: number;
+  }>("PRAGMA user_version") ?? { user_version: 1 };
+
+  if (currentVersion < 2) {
+    await database.execAsync(`
+      ALTER TABLE offline_incident_queue ADD COLUMN max_attempts INTEGER NOT NULL DEFAULT 5;
+      ALTER TABLE offline_incident_queue ADD COLUMN next_retry_at TEXT;
+      PRAGMA user_version = 2;
+    `);
+  }
 
   return database;
 }
@@ -72,7 +89,9 @@ function mapRow(row: OfflineIncidentRow): OfflineIncidentQueueItem {
     },
     createdAt: row.created_at,
     attemptCount: row.attempt_count,
+    maxAttempts: row.max_attempts,
     lastAttemptAt: row.last_attempt_at,
+    nextRetryAt: row.next_retry_at,
     lastError: row.last_error,
   };
 }
@@ -120,11 +139,14 @@ export async function enqueueOfflineIncident(
 
 export async function getPendingOfflineIncidents(userId: string) {
   const database = await getDatabase();
+  const now = new Date().toISOString();
   const rows = await database.getAllAsync<OfflineIncidentRow>(
     `SELECT * FROM offline_incident_queue
       WHERE user_id = ?
+        AND (next_retry_at IS NULL OR next_retry_at <= ?)
       ORDER BY created_at ASC, id ASC`,
     userId,
+    now,
   );
 
   return rows.map(mapRow);
@@ -158,6 +180,46 @@ export async function markOfflineIncidentAttempt(
   );
 }
 
+export async function markOfflineIncidentRetry(
+  id: number,
+  errorMessage: string,
+  baseDelayMs: number,
+) {
+  const database = await getDatabase();
+
+  const row = await database.getFirstAsync<OfflineIncidentRow>(
+    "SELECT attempt_count, max_attempts FROM offline_incident_queue WHERE id = ?",
+    id,
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  const newAttemptCount = row.attempt_count + 1;
+  const delay = baseDelayMs * Math.pow(2, newAttemptCount - 1);
+  const nextRetryAt =
+    newAttemptCount < row.max_attempts
+      ? new Date(Date.now() + delay).toISOString()
+      : null;
+
+  await database.runAsync(
+    `UPDATE offline_incident_queue
+      SET attempt_count = ?,
+          last_attempt_at = ?,
+          last_error = ?,
+          next_retry_at = ?
+      WHERE id = ?`,
+    newAttemptCount,
+    new Date().toISOString(),
+    errorMessage.slice(0, 500),
+    nextRetryAt,
+    id,
+  );
+
+  return nextRetryAt;
+}
+
 export async function deleteOfflineIncident(id: number) {
   const database = await getDatabase();
 
@@ -165,4 +227,36 @@ export async function deleteOfflineIncident(id: number) {
     "DELETE FROM offline_incident_queue WHERE id = ?",
     id,
   );
+}
+
+export async function cleanupExpiredOfflineIncidents(maxAgeMs: number) {
+  const database = await getDatabase();
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+
+  await database.runAsync(
+    `DELETE FROM offline_incident_queue
+      WHERE created_at < ?
+        AND (next_retry_at IS NULL OR next_retry_at < ?)`,
+    cutoff,
+    cutoff,
+  );
+}
+
+export async function getEarliestRetryAt(
+  userId: string,
+): Promise<string | null> {
+  const database = await getDatabase();
+  const now = new Date().toISOString();
+  const row = await database.getFirstAsync<{ next_retry_at: string | null }>(
+    `SELECT next_retry_at FROM offline_incident_queue
+      WHERE user_id = ?
+        AND next_retry_at IS NOT NULL
+        AND next_retry_at > ?
+      ORDER BY next_retry_at ASC
+      LIMIT 1`,
+    userId,
+    now,
+  );
+
+  return row?.next_retry_at ?? null;
 }

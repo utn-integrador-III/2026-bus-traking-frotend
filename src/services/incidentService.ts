@@ -6,7 +6,7 @@ import {
   deleteOfflineIncident,
   enqueueOfflineIncident,
   getPendingOfflineIncidents,
-  markOfflineIncidentAttempt,
+  markOfflineIncidentRetry,
 } from "../database/offlineIncidentQueue";
 import type {
   OfflineIncidentSyncSummary,
@@ -20,6 +20,8 @@ import {
 
 const tripIdPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export const BASE_RETRY_DELAY_MS = 2000;
 
 const syncsByUser = new Map<string, Promise<OfflineIncidentSyncSummary>>();
 
@@ -82,10 +84,16 @@ function shouldStopSync(error: unknown) {
 
   return (
     error.status === 0 ||
-    error.status === 401 ||
-    error.status === 403 ||
     error.status >= 500
   );
+}
+
+function isAuthError(error: unknown) {
+  if (!(error instanceof ApiClientError)) {
+    return false;
+  }
+
+  return error.status === 401 || error.status === 403;
 }
 
 export function hasUsableInternetConnection(state: NetInfoState) {
@@ -116,13 +124,14 @@ async function performSync(
       await deleteOfflineIncident(queuedReport.id);
       syncedIds.push(queuedReport.id);
     } catch (error) {
-      await markOfflineIncidentAttempt(
+      await markOfflineIncidentRetry(
         queuedReport.id,
         getErrorMessage(error),
+        BASE_RETRY_DELAY_MS,
       );
       failedIds.push(queuedReport.id);
 
-      if (shouldStopSync(error)) {
+      if (shouldStopSync(error) || isAuthError(error)) {
         break;
       }
     }
