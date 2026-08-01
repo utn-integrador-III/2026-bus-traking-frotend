@@ -207,16 +207,8 @@ export default function DriverHomeScreen({
     }
   }
 
-  async function handlePanicIncident() {
+  async function submitPanicIncident(incidentType: string) {
     if (!activeTrip) {
-      return;
-    }
-
-    if (currentSpeed > 0) {
-      Alert.alert(
-        "Accion bloqueada",
-        "El boton de panico solo esta disponible con el vehiculo detenido.",
-      );
       return;
     }
 
@@ -230,7 +222,7 @@ export default function DriverHomeScreen({
       await createDriverIncident(
         {
           trip_id: activeTrip.id,
-          type: "Other",
+          type: incidentType,
           description: "Reporte de panico del conductor.",
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
@@ -249,6 +241,52 @@ export default function DriverHomeScreen({
     } finally {
       setIsBusy(false);
     }
+  }
+
+  function handlePanicIncident() {
+    if (!activeTrip) {
+      return;
+    }
+
+    if (currentSpeed > 0) {
+      Alert.alert(
+        "Accion bloqueada",
+        "El boton de panico solo esta disponible con el vehiculo detenido.",
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Reportar incidente critico",
+      "Selecciona el tipo de incidente:",
+      [
+        {
+          text: "Accidente",
+          onPress: () => {
+            void submitPanicIncident("Accident");
+          },
+        },
+        {
+          text: "Demora",
+          onPress: () => {
+            void submitPanicIncident("Delay");
+          },
+        },
+        {
+          text: "Sobrecupo",
+          onPress: () => {
+            void submitPanicIncident("Overcrowding");
+          },
+        },
+        {
+          text: "Otro",
+          onPress: () => {
+            void submitPanicIncident("Other");
+          },
+        },
+        { text: "Cancelar", style: "cancel" },
+      ],
+    );
   }
 
   async function finishTrip(mode: "complete" | "cancel") {
