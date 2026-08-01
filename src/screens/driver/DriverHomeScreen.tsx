@@ -128,8 +128,9 @@ export default function DriverHomeScreen({
         },
         (loc) => {
           if (!cancelled) {
-            const speedKmh = loc.coords.speed != null && loc.coords.speed >= 0
-              ? Number((loc.coords.speed * 3.6).toFixed(1))
+            const rawSpeedMs = loc.coords.speed ?? 0;
+            const speedKmh = rawSpeedMs >= 1
+              ? Number((rawSpeedMs * 3.6).toFixed(1))
               : 0;
             setCurrentSpeed(speedKmh);
           }
