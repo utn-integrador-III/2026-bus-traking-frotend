@@ -230,7 +230,7 @@ export default function DriverHomeScreen({
       await createDriverIncident(
         {
           trip_id: activeTrip.id,
-          type: "Mechanical",
+          type: "Other",
           description: "Reporte de panico del conductor.",
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,

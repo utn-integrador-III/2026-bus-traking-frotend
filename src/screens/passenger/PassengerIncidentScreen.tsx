@@ -139,7 +139,7 @@ export default function PassengerIncidentScreen({
                   selectedType === incidentType && styles.typeChipTextSelected,
                 ]}
               >
-                {incidentType === "Traffic" ? "Trafico" : incidentType === "Accident" ? "Accidente" : incidentType === "Overcrowding" ? "Sobrecupo" : incidentType === "Mechanical" ? "Falla mecanica" : incidentType === "Hazard" ? "Peligro" : "Otro"}
+                {incidentType === "Delay" ? "Demora" : incidentType === "Accident" ? "Accidente" : incidentType === "Overcrowding" ? "Sobrecupo" : "Otro"}
               </Text>
             </Pressable>
           ))}
