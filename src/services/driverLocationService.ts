@@ -141,12 +141,12 @@ export async function startDriverTracking(
     throw new Error("Se requieren permisos de ubicación para transmitir la ruta.");
   }
 
-  await writeSession({ tripId, token });
-
   const alreadyRunning = await isDriverTrackingActive();
   if (alreadyRunning) {
     await stopDriverTracking();
   }
+
+  await writeSession({ tripId, token });
 
   let backgroundGranted = false;
   try {
