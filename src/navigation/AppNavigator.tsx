@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { supabase } from "../lib/supabase";
+import { stopDriverTracking } from "../services/driverLocationService";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
@@ -29,6 +31,29 @@ export default function AppNavigator() {
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function restoreSession() {
+      const stored = await supabase.auth.getSession().catch(() => null);
+
+      if (stored?.data.session) {
+        await supabase.auth.signOut().catch(() => undefined);
+      }
+
+      if (isMounted) {
+        setIsRestoringSession(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
@@ -51,7 +76,10 @@ export default function AppNavigator() {
     setCurrentScreen("login");
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await stopDriverTracking().catch(() => undefined);
+    await supabase.auth.signOut().catch(() => undefined);
+
     setSession(null);
     setSelectedTripId(null);
     setGeneratedTicket(null);
@@ -98,6 +126,14 @@ export default function AppNavigator() {
 
   function handleOpenScanner() {
     setCurrentScreen("driver-scanner");
+  }
+
+  if (isRestoringSession) {
+    return (
+      <View style={styles.placeholderScreen}>
+        <ActivityIndicator color="#0F2141" size="large" />
+      </View>
+    );
   }
 
   if (currentScreen === "register") {
