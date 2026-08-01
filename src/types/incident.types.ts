@@ -24,11 +24,9 @@ export interface PassengerIncidentResponse {
 }
 
 export const INCIDENT_TYPES = [
-  "Traffic",
+  "Delay",
   "Accident",
   "Overcrowding",
-  "Mechanical",
-  "Hazard",
   "Other",
 ] as const;
 
