@@ -170,7 +170,6 @@ export default function PassengerRouteTrackingScreen({
   const [hasBoarded, setHasBoarded] = useState(false);
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
-  const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
 
   const animatedCoordinate = useRef(
     new AnimatedRegion({
@@ -244,12 +243,7 @@ export default function PassengerRouteTrackingScreen({
     selectedStopIdxRef.current = stop.index;
     wasInsideBoardingZone.current = false;
     missedAlertShown.current = false;
-    try {
-      const result = await watchStop(tripId, `stop-${stop.index}`, accessToken);
-      setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${stop.index}`);
-    }
+    await watchStop(tripId, `stop-${stop.index}`, accessToken).catch(() => {});
   }
 
   function triggerMissedBusAlert() {
@@ -418,11 +412,6 @@ export default function PassengerRouteTrackingScreen({
       supabase.removeChannel(channel);
     };
   }, [tripId]);
-
-  useEffect(() => {
-    if (!selectedStopIdx) return;
-    watchStop(tripId, `stop-${selectedStopIdx}`, accessToken).catch(() => {});
-  }, []);
 
   if (isLoading) {
     return (
