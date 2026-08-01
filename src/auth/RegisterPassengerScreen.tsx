@@ -412,7 +412,7 @@ export default function RegisterPassengerScreen() {
               icon="lock"
               label="Contrasena"
               onChangeText={(value) => updateField("password", value)}
-              placeholder="Password123"
+              placeholder="Minimo 8 caracteres"
               secureTextEntry
               textContentType="newPassword"
               value={form.password}
