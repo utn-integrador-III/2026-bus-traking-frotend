@@ -148,6 +148,8 @@ export default function PassengerHomeScreen({
   const wasNearBoarding = useRef(false);
   const missedAlertShown = useRef(false);
   const realtimeChannel = useRef<any>(null);
+  const boardingNodeRef = useRef<LatLng | null>(null);
+  const selectedStopIndexRef = useRef<number | null>(null);
 
   const animatedCoord = useRef(
     new AnimatedRegion({
@@ -267,8 +269,9 @@ export default function PassengerHomeScreen({
   }
 
   function evaluateBoardingPass(busPos: LatLng) {
-    if (!boardingNode || selectedStopIndex !== null) return;
-    const dist = haversineMeters(busPos, boardingNode);
+    const boarding = boardingNodeRef.current;
+    if (!boarding || selectedStopIndexRef.current !== null) return;
+    const dist = haversineMeters(busPos, boarding);
     if (dist <= BOARDING_RADIUS) {
       wasNearBoarding.current = true;
       return;
@@ -292,6 +295,14 @@ export default function PassengerHomeScreen({
       } as any)
       .start();
   }
+
+  useEffect(() => {
+    boardingNodeRef.current = boardingNode;
+  }, [boardingNode]);
+
+  useEffect(() => {
+    selectedStopIndexRef.current = selectedStopIndex;
+  }, [selectedStopIndex]);
 
   useEffect(() => {
     if (mapRef.current && routeCoords.length > 0) {

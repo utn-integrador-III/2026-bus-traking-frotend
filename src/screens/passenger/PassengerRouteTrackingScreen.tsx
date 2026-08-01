@@ -296,8 +296,10 @@ export default function PassengerRouteTrackingScreen({
   }
 
   function evaluateBoardingGeofence(busPoint: LatLng) {
-    if (!currentStop || hasBoardedRef.current) return;
-    const distance = haversineMeters(busPoint, currentStop.coordinate);
+    const stops = stopPointsRef.current;
+    const stop = stops[selectedStopIdxRef.current] || stops[0] || null;
+    if (!stop || hasBoardedRef.current) return;
+    const distance = haversineMeters(busPoint, stop.coordinate);
     const isInside = distance <= BOARDING_RADIUS_METERS;
     if (isInside) {
       wasInsideBoardingZone.current = true;
@@ -322,8 +324,9 @@ export default function PassengerRouteTrackingScreen({
   }
 
   async function refreshEta(busPoint: LatLng) {
+    const stops = stopPointsRef.current;
     const destination =
-      stopPoints.length > 0 ? stopPoints[stopPoints.length - 1].coordinate : null;
+      stops.length > 0 ? stops[stops.length - 1].coordinate : null;
     if (!destination) return;
     const now = Date.now();
     if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) return;
