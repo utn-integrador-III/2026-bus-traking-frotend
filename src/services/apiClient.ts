@@ -361,32 +361,6 @@ export async function getPassengerTrips(
   });
 }
 
-export async function getPassengerHomeTrips(
-  token?: string,
-): Promise<PassengerTripCard[]> {
-  const [routes, trips] = await Promise.all([
-    getPassengerRoutes(token),
-    getPassengerTrips(token),
-  ]);
-
-  return trips.map((trip) => {
-    const route = routes.find((item) => item.id === trip.route_id);
-
-    return {
-      tripId: trip.id,
-      routeId: trip.route_id,
-      code: route ? buildRouteCode(route) : trip.id.slice(0, 4).toUpperCase(),
-      name: route ? formatRouteName(route) : "Viaje disponible",
-      origin: route?.origin || "Origen",
-      destination: route?.destination || "Destino",
-      status: trip.status,
-      departureTime: trip.departure_time,
-      badgeText: buildBadgeText(trip.status),
-      etaText: buildEtaText(trip.status),
-    };
-  });
-}
-
 export async function getPassengerTripTrackingData(
   tripId: string,
   token?: string,

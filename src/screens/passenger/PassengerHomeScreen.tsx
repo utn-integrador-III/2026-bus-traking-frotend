@@ -18,10 +18,13 @@ import {
   watchStop,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
+import {
+  BOARDING_RADIUS_METERS,
+  GEOFENCE_RADIUS_METERS,
+} from "../../config/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MAP_HEIGHT = SCREEN_WIDTH * 0.7;
-const BOARDING_RADIUS = 150;
 
 interface LiveBusPosition {
   latitude: number;
@@ -269,11 +272,11 @@ export default function PassengerHomeScreen({
   function evaluateBoardingPass(busPos: LatLng) {
     if (!boardingNode || selectedStopIndex !== null) return;
     const dist = haversineMeters(busPos, boardingNode);
-    if (dist <= BOARDING_RADIUS) {
+    if (dist <= BOARDING_RADIUS_METERS) {
       wasNearBoarding.current = true;
       return;
     }
-    if (wasNearBoarding.current && dist > BOARDING_RADIUS) {
+    if (wasNearBoarding.current && dist > BOARDING_RADIUS_METERS) {
       wasNearBoarding.current = false;
       handleMissedBus();
     }
@@ -339,11 +342,10 @@ export default function PassengerHomeScreen({
     if (!accessToken || !user.id) return;
     const alertChannel = supabase
       .channel(`home:passenger:${user.id}:alerts`)
-      .on("broadcast", { event: "bus_approaching" }, (payload: any) => {
-        const data = payload?.payload || payload;
+      .on("broadcast", { event: "bus_approaching" }, () => {
         Alert.alert(
           "Bus acercándose",
-          `El bus está a menos de 500m de tu parada. Preparate para abordar.`,
+          `El bus está a menos de ${GEOFENCE_RADIUS_METERS}m de tu parada. Preparate para abordar.`,
         );
       })
       .subscribe();
