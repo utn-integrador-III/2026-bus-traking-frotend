@@ -1,8 +1,10 @@
 import React from "react";
 import {
+  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -21,6 +23,17 @@ export default function PassengerBoardingPassScreen({
   onBackHome,
   onBackToTrip,
 }: PassengerBoardingPassScreenProps) {
+  async function handleShareTicket() {
+    try {
+      await Share.share({
+        message: ticket.qr_payload,
+        title: "Mi boleto BusTrack",
+      });
+    } catch {
+      Alert.alert("Compartir", "No se pudo compartir el boleto.");
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -108,11 +121,11 @@ export default function PassengerBoardingPassScreen({
         </View>
 
         <View style={styles.actionsRow}>
-          <Pressable style={styles.secondarySmallButton}>
-            <Text style={styles.secondarySmallText}>Guardar</Text>
-          </Pressable>
-
-          <Pressable style={styles.secondarySmallButton}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleShareTicket}
+            style={styles.secondarySmallButton}
+          >
             <Text style={styles.secondarySmallText}>Compartir</Text>
           </Pressable>
         </View>

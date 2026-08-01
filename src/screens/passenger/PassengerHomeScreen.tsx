@@ -566,13 +566,23 @@ export default function PassengerHomeScreen({
           />
         )}
 
-        <View style={styles.bottomTabs}>
-          <Text style={styles.activeTab}>Inicio</Text>
-          <Text style={styles.tab}>Rutas</Text>
-          <Pressable onPress={onOpenTickets}>
+        <View accessibilityRole="tablist" style={styles.bottomTabs}>
+          <Text
+            accessibilityRole="tab"
+            accessibilityState={{ selected: true }}
+            style={styles.activeTab}
+          >
+            Inicio
+          </Text>
+          <Text accessibilityRole="text" style={styles.disabledTab}>
+            Rutas
+          </Text>
+          <Pressable accessibilityRole="tab" onPress={onOpenTickets}>
             <Text style={styles.tab}>Boletos</Text>
           </Pressable>
-          <Text style={styles.tab}>Perfil</Text>
+          <Text accessibilityRole="text" style={styles.disabledTab}>
+            Perfil
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -830,4 +840,10 @@ const styles = StyleSheet.create({
   },
   activeTab: { color: "#0F2141", fontWeight: "900", fontSize: 13 },
   tab: { color: "#8A94A6", fontWeight: "700", fontSize: 13 },
+  disabledTab: {
+    color: "#C2C8D2",
+    fontWeight: "700",
+    fontSize: 13,
+    opacity: 0.6,
+  },
 });
