@@ -79,7 +79,7 @@ export default function PassengerIncidentScreen({
         {
           trip_id: tripId,
           type: selectedType,
-          description: description.trim() || undefined,
+          description: description.trim() || "Sin descripcion",
           latitude: coords.latitude,
           longitude: coords.longitude,
         },
@@ -139,7 +139,7 @@ export default function PassengerIncidentScreen({
                   selectedType === incidentType && styles.typeChipTextSelected,
                 ]}
               >
-                {incidentType === "Delay" ? "Demora" : incidentType === "Accident" ? "Accidente" : incidentType === "Overcrowding" ? "Sobrecupo" : "Otro"}
+                {incidentType === "Accident" ? "Accidente" : incidentType === "Delay" ? "Demora" : incidentType === "Traffic_Congestion" ? "Congestion de trafico" : incidentType === "Overcrowding" ? "Sobrecupo" : incidentType === "Road_Problem" ? "Problema de via" : incidentType === "Mechanical_Failure" ? "Falla mecanica" : "Otro"}
               </Text>
             </Pressable>
           ))}
