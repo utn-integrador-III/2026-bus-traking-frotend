@@ -267,15 +267,21 @@ export default function DriverHomeScreen({
           },
         },
         {
-          text: "Demora",
+          text: "Falla mecanica",
           onPress: () => {
-            void submitPanicIncident("Delay");
+            void submitPanicIncident("Mechanical_Failure");
           },
         },
         {
-          text: "Sobrecupo",
+          text: "Problema de via",
           onPress: () => {
-            void submitPanicIncident("Overcrowding");
+            void submitPanicIncident("Road_Problem");
+          },
+        },
+        {
+          text: "Demora",
+          onPress: () => {
+            void submitPanicIncident("Delay");
           },
         },
         {
