@@ -12,6 +12,7 @@ import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
 import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScreen";
 import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
+import { useOfflineIncidentSync } from "../hooks/useOfflineIncidentSync";
 import PassengerIncidentScreen from "../screens/passenger/PassengerIncidentScreen";
 import { LoginResponse } from "../services/apiClient";
 import { Ticket } from "../services/ticketService";
@@ -74,6 +75,8 @@ export default function AppNavigator() {
     enabled: isPassenger,
     onNotificationTripId: handleNotificationTripId,
   });
+
+  useOfflineIncidentSync(session);
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
