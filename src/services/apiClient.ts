@@ -36,6 +36,8 @@ export interface AuthUser {
   email: string;
   role: UserRole | null;
   name: string | null;
+  is_senior?: boolean;
+  senior_status?: string;
 }
 
 export interface LoginRequest {

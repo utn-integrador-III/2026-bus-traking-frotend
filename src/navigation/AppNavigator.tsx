@@ -144,7 +144,7 @@ export default function AppNavigator() {
       <PassengerPaymentScreen
         tripId={selectedTripId}
         accessToken={session.access_token}
-        isSeniorPassenger={false}
+        isSeniorPassenger={!!session.user.is_senior}
         onBack={() => setCurrentScreen("passenger-tracking")}
         onPaymentSuccess={handlePaymentSuccess}
       />
