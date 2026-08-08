@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import type { SeniorStatus } from "../types/user.types";
 import type {
   PassengerIncident,
   PassengerIncidentDraft,
@@ -47,7 +48,7 @@ export interface AuthUser {
   role: UserRole | null;
   name: string | null;
   is_senior?: boolean;
-  senior_status?: string;
+  senior_status?: SeniorStatus;
 }
 
 export interface LoginRequest {
