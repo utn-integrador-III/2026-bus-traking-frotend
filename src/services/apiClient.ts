@@ -16,7 +16,12 @@ type ApiRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   token?: string;
+  expectArray?: boolean;
 };
+
+const REQUEST_TIMEOUT_MS = 15000;
+
+const RETRY_DELAY_MS = 800;
 
 type ApiErrorEnvelope = {
   code?: string;
@@ -196,6 +201,26 @@ async function readResponseBody(response: Response): Promise<unknown> {
   }
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {},
@@ -212,11 +237,51 @@ export async function apiRequest<T>(
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(buildApiUrl(path), {
-    method: options.method || "GET",
+  const method = options.method || "GET";
+  const url = buildApiUrl(path);
+
+  const init: RequestInit = {
+    method,
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  };
+
+  const maxAttempts = method === "GET" ? 2 : 1;
+
+  let response: Response | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      response = await fetchWithTimeout(url, init);
+      break;
+    } catch (error) {
+      if ((error as Error)?.name === "AbortError") {
+        throw new ApiClientError(
+          0,
+          "La solicitud tardó demasiado. Revisá tu conexión.",
+          "TIMEOUT",
+        );
+      }
+
+      if (attempt >= maxAttempts) {
+        throw new ApiClientError(
+          0,
+          "No se pudo conectar con el servidor. Revisá tu conexión.",
+          "NETWORK_ERROR",
+        );
+      }
+
+      await wait(RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  if (!response) {
+    throw new ApiClientError(
+      0,
+      "No se pudo conectar con el servidor. Revisá tu conexión.",
+      "NETWORK_ERROR",
+    );
+  }
 
   const body = await readResponseBody(response);
 
@@ -228,6 +293,14 @@ export async function apiRequest<T>(
       apiError.message || "No se pudo completar la solicitud.",
       apiError.code,
       apiError.details,
+    );
+  }
+
+  if (options.expectArray && !Array.isArray(body)) {
+    throw new ApiClientError(
+      response.status,
+      "La respuesta del servidor no tiene el formato esperado.",
+      "INVALID_RESPONSE",
     );
   }
 
@@ -344,6 +417,7 @@ export async function getPassengerRoutes(
   return apiRequest<PassengerRoute[]>("/passenger/routes", {
     method: "GET",
     token,
+    expectArray: true,
   });
 }
 
@@ -353,6 +427,7 @@ export async function getPassengerTrips(
   return apiRequest<PassengerTrip[]>("/passenger/trips", {
     method: "GET",
     token,
+    expectArray: true,
   });
 }
 
@@ -476,6 +551,7 @@ export async function getAssignedDriverTrips(
   return apiRequest<DriverTrip[]>("/api/driver/trips", {
     method: "GET",
     token,
+    expectArray: true,
   });
 }
 
@@ -625,6 +701,7 @@ export async function getPassengerTrackingTripsPreview(
     {
       method: "GET",
       token,
+      expectArray: true,
     },
   );
 }
@@ -651,6 +728,7 @@ export async function getTripStops(
   return apiRequest<StopRaw[]>(`/passenger/stops?route_id=${routeId}`, {
     method: "GET",
     token,
+    expectArray: true,
   });
 }
 
