@@ -13,6 +13,7 @@
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "mobile:typecheck": "tsc -p tsconfig.mobile.json --noEmit",
+    "mobile:env:check": "node scripts/check-mobile-env.mjs",
     "prepare": "husky",
     "design:typecheck": "npm run typecheck -w @bustrack/design",
     "web:dev": "npm run dev -w web",
