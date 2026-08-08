@@ -134,7 +134,7 @@ function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
 
 function buildStatusLabel(status: TripStatus): string {
   if (status === "Delayed") return "Delayed";
-  if (status === "In Progress") return "In Progress";
+  if (status === "In_Progress") return "In Progress";
   if (status === "Stopped") return "Stopped";
   if (status === "Scheduled" || status === "Pending") return "Scheduled";
   return String(status);
@@ -508,7 +508,7 @@ export default function PassengerRouteTrackingScreen({
               styles.statusBadge,
               currentStatus === "Delayed"
                 ? styles.delayedBadge
-                : currentStatus === "In Progress"
+                : currentStatus === "In_Progress"
                   ? styles.progressBadge
                   : styles.scheduledBadge,
             ]}
