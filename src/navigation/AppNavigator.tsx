@@ -13,6 +13,7 @@ import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScr
 import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
 import { useOfflineIncidentSync } from "../hooks/useOfflineIncidentSync";
+import { useGeofenceAlerts } from "../hooks/useGeofenceAlerts";
 import PassengerIncidentScreen from "../screens/passenger/PassengerIncidentScreen";
 import { LoginResponse } from "../services/apiClient";
 import { Ticket } from "../services/ticketService";
@@ -75,6 +76,57 @@ export default function AppNavigator() {
     enabled: isPassenger,
     onNotificationTripId: handleNotificationTripId,
   });
+
+  const { alert: geofenceAlert, dismissAlert: dismissGeofenceAlert } =
+    useGeofenceAlerts({
+      userId: isPassenger ? session?.user.id : null,
+      enabled: isPassenger,
+    });
+
+  useEffect(() => {
+    if (!geofenceAlert) return undefined;
+
+    const timer = setTimeout(dismissGeofenceAlert, 6000);
+    return () => clearTimeout(timer);
+  }, [geofenceAlert, dismissGeofenceAlert]);
+
+  function handleGeofenceBannerPress() {
+    if (!geofenceAlert) return;
+
+    setSelectedTripId(geofenceAlert.tripId);
+    setGeneratedTicket(null);
+    setCurrentScreen("passenger-tracking");
+    dismissGeofenceAlert();
+  }
+
+  function renderGeofenceBanner() {
+    if (!geofenceAlert) return null;
+
+    return (
+      <View style={styles.geofenceBannerWrap} pointerEvents="box-none">
+        <Pressable
+          style={styles.geofenceBanner}
+          onPress={handleGeofenceBannerPress}
+        >
+          <View style={styles.geofenceBannerBody}>
+            <Text style={styles.geofenceBannerTitle}>
+              Tu autobús está llegando
+            </Text>
+            <Text style={styles.geofenceBannerText}>
+              El bus se está acercando a tu parada. Preparate para abordar.
+            </Text>
+          </View>
+          <Pressable
+            style={styles.geofenceBannerClose}
+            onPress={dismissGeofenceAlert}
+            hitSlop={8}
+          >
+            <Text style={styles.geofenceBannerCloseText}>✕</Text>
+          </Pressable>
+        </Pressable>
+      </View>
+    );
+  }
 
   useOfflineIncidentSync(session);
 
@@ -179,27 +231,33 @@ export default function AppNavigator() {
 
   if (currentScreen === "passenger-home" && session) {
     return (
-      <PassengerHomeScreen
-        user={session.user}
-        accessToken={session.access_token}
-        onLogout={handleLogout}
-        onTrackTrip={handleTrackTrip}
-        onOpenTickets={handleOpenMyTickets}
-        trackingTripId={selectedTripId}
-        onClearTracking={handleClearTracking}
-      />
+      <View style={styles.screen}>
+        <PassengerHomeScreen
+          user={session.user}
+          accessToken={session.access_token}
+          onLogout={handleLogout}
+          onTrackTrip={handleTrackTrip}
+          onOpenTickets={handleOpenMyTickets}
+          trackingTripId={selectedTripId}
+          onClearTracking={handleClearTracking}
+        />
+        {renderGeofenceBanner()}
+      </View>
     );
   }
 
   if (currentScreen === "passenger-tracking" && session && selectedTripId) {
     return (
-      <PassengerRouteTrackingScreen
-        tripId={selectedTripId}
-        accessToken={session.access_token}
-        onBack={handleBackFromTracking}
-        onCheckout={handleCheckout}
-        onOpenIncidentReport={handleOpenIncidentReport}
-      />
+      <View style={styles.screen}>
+        <PassengerRouteTrackingScreen
+          tripId={selectedTripId}
+          accessToken={session.access_token}
+          onBack={handleBackFromTracking}
+          onCheckout={handleCheckout}
+          onOpenIncidentReport={handleOpenIncidentReport}
+        />
+        {renderGeofenceBanner()}
+      </View>
     );
   }
 
@@ -331,6 +389,51 @@ const styles = StyleSheet.create({
   },
   placeholderButtonText: {
     color: "#0F2141",
+    fontWeight: "900",
+  },
+  geofenceBannerWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: 12,
+    paddingTop: 50,
+  },
+  geofenceBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFA70B",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+  },
+  geofenceBannerBody: {
+    flex: 1,
+  },
+  geofenceBannerTitle: {
+    color: "#0F2141",
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 2,
+  },
+  geofenceBannerText: {
+    color: "#0F2141",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  geofenceBannerClose: {
+    marginLeft: 12,
+    padding: 4,
+  },
+  geofenceBannerCloseText: {
+    color: "#0F2141",
+    fontSize: 16,
     fontWeight: "900",
   },
 });

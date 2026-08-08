@@ -56,64 +56,26 @@ export type AdminTrip = {
   ended_at: string | null;
 };
 
-export type AdminTripInput = {
-  route_id: string;
-  bus_id: string;
-  driver_id: string;
-  departure_time: string;
-};
-
-export type AdminStop = {
-  id: string;
-  route_id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  stop_order: number;
-  created_at: string;
-};
-
-export type StopInput = {
-  route_id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  stop_order: number;
-};
-
 export type AdminBus = {
   id: string;
   plate_number: string;
   capacity: number;
   status: string;
+  created_at: string;
 };
 
-export type IncidentStatus = "Pending" | "Validated" | "Archived" | "Dismissed";
+export type IncidentModerationStatus = "pending" | "validated" | "dismissed";
 
 export type AdminIncident = {
   id: string;
   trip_id: string;
   user_id: string;
   type: string;
-  description: string;
+  description: string | null;
   latitude: number;
   longitude: number;
   timestamp: string;
-  status: IncidentStatus;
-};
-
-export type TelemetryPoint = {
-  latitude: number;
-  longitude: number;
-  speed: number;
-  heading: number;
-  timestamp: string;
-};
-
-export type CurrentTelemetry = TelemetryPoint & {
-  trip_id: string;
-  route_id: string | null;
-  status: TripStatus;
+  moderation_status: IncidentModerationStatus;
 };
 
 export type SessionUser = {

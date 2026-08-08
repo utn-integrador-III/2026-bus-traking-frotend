@@ -6,14 +6,8 @@ import type {
   AdminDriver,
   AdminIncident,
   AdminRoute,
-  AdminStop,
   AdminTrip,
-  AdminTripInput,
-  CurrentTelemetry,
-  IncidentStatus,
-  StopInput,
-  TelemetryPoint,
-  TripStatus,
+  IncidentModerationStatus,
 } from "./types";
 
 export type LoadResult<T> =
@@ -83,74 +77,27 @@ export function deactivateDriver(id: string) {
   return call<AdminDriver>(`/admin/drivers/${id}`, { method: "DELETE" });
 }
 
-export function createRoute(input: RouteInput) {
-  return call<AdminRoute>("/admin/routes", { method: "POST", body: input });
-}
-
-export function getStops(routeId?: string) {
-  const query = routeId ? `?route_id=${encodeURIComponent(routeId)}` : "";
-  return call<AdminStop[]>(`/admin/stops${query}`);
-}
-
-export function createStop(input: StopInput) {
-  return call<AdminStop>("/admin/stops", { method: "POST", body: input });
-}
-
-export function updateStop(id: string, input: StopInput) {
-  return call<AdminStop>(`/admin/stops/${id}`, { method: "PUT", body: input });
-}
-
-export function deleteStop(id: string) {
-  return call<{ deleted: true }>(`/admin/stops/${id}`, { method: "DELETE" });
-}
-
 export function getBuses() {
   return call<AdminBus[]>("/admin/buses");
 }
 
-export function createTrip(input: AdminTripInput) {
-  return call<AdminTrip>("/admin/trips", { method: "POST", body: input });
-}
-
-export function updateTripStatus(id: string, status: TripStatus) {
-  return call<AdminTrip>(`/admin/trips/${id}/status`, {
-    method: "PATCH",
-    body: { status },
-  });
-}
-
-export type CreateDriverInput = {
-  name: string;
-  email: string;
-  password: string;
-  license_number: string;
-};
-
-export function createDriver(input: CreateDriverInput) {
-  return call<AdminDriver>("/admin/drivers", { method: "POST", body: input });
-}
-
-export function getIncidents(status?: IncidentStatus) {
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+export function getIncidents(status?: IncidentModerationStatus) {
+  const query = status ? `?status=${status}` : "";
   return call<AdminIncident[]>(`/admin/incidents${query}`);
 }
 
-export function updateIncidentStatus(id: string, status: IncidentStatus) {
+export function moderateIncident(id: string, moderationStatus: IncidentModerationStatus) {
   return call<AdminIncident>(`/admin/incidents/${id}`, {
     method: "PUT",
-    body: { status },
+    body: { moderation_status: moderationStatus },
   });
 }
 
-export function getTelemetryHistory(params: {
-  trip_id: string;
-  start_time: string;
-  end_time: string;
+export function createTrip(input: {
+  route_id: string;
+  bus_id: string;
+  driver_id: string;
+  departure_time: string;
 }) {
-  const query = new URLSearchParams(params).toString();
-  return call<TelemetryPoint[]>(`/admin/telemetry/history?${query}`);
-}
-
-export function getCurrentTelemetry() {
-  return call<CurrentTelemetry[]>("/admin/telemetry/current");
+  return call<{ id: string }>("/admin/trips", { method: "POST", body: input });
 }
