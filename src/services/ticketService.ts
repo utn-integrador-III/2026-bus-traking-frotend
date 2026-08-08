@@ -4,12 +4,16 @@ export interface CheckoutTicketRequest {
   trip_id: string;
 }
 
+export type TicketStatus = "Generated" | "Scanned" | "Cancelled";
+
+export type TicketPaymentType = "Mock" | "Senior_Exemption";
+
 export interface Ticket {
   id: string;
   passenger_id: string;
   trip_id: string;
-  status: "Generated" | string;
-  payment_type?: "Mock" | "Senior_Exemption" | string;
+  status: TicketStatus;
+  payment_type?: TicketPaymentType;
   generated_at?: string;
   scanned_at?: string | null;
   qr_token?: string | null;
