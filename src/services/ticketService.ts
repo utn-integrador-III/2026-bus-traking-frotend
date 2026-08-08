@@ -9,7 +9,7 @@ export interface Ticket {
   passenger_id: string;
   trip_id: string;
   status: "Generated" | string;
-  payment_type?: "Mock" | string;
+  payment_type?: "Mock" | "Senior_Exemption" | string;
   generated_at?: string;
   scanned_at?: string | null;
   qr_token?: string | null;
