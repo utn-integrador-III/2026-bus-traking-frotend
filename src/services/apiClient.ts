@@ -36,6 +36,8 @@ export interface AuthUser {
   email: string;
   role: UserRole | null;
   name: string | null;
+  is_senior?: boolean;
+  senior_status?: string;
 }
 
 export interface LoginRequest {
@@ -125,15 +127,8 @@ export class ApiClientError extends Error {
   }
 }
 
-function readPublicEnv(key: string): string | undefined {
-  return (globalThis as any)?.process?.env?.[key];
-}
-
 function getApiUrl(): string {
-  const rawApiUrl =
-    readPublicEnv("EXPO_PUBLIC_API_BASE_URL") ||
-    readPublicEnv("EXPO_PUBLIC_API_URL") ||
-    env.apiBaseUrl;
+  const rawApiUrl = env.apiBaseUrl;
 
   if (!rawApiUrl) {
     throw new ApiClientError(
