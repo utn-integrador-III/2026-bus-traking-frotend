@@ -139,23 +139,6 @@ TaskManager.defineTask(
 
 let foregroundSubscription: Location.LocationSubscription | null = null;
 
-export async function ensureLocationPermissions(): Promise<boolean> {
-  const foreground = await Location.requestForegroundPermissionsAsync();
-
-  if (foreground.status !== "granted") {
-    return false;
-  }
-
-  try {
-    const background = await Location.requestBackgroundPermissionsAsync();
-    return background.status === "granted";
-  } catch (error) {
-    // In Expo Go on iOS, requesting background permissions throws an Info.plist error.
-    console.warn("Background location permission error (likely Expo Go iOS):", error);
-    return false;
-  }
-}
-
 export async function isDriverTrackingActive(): Promise<boolean> {
   const backgroundActive = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
   return backgroundActive || foregroundSubscription !== null;
