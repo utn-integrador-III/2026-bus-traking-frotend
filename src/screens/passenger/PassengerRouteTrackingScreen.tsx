@@ -20,9 +20,11 @@ import {
   PassengerTripTrackingData,
   TripStatus,
   watchStop,
+  getMapIncidents,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
 import { BOARDING_RADIUS_METERS } from "../../config/constants";
+import type { PassengerIncident } from "../../types/incident.types";
 
 const ETA_REFRESH_INTERVAL_MS = 20000;
 
@@ -31,6 +33,7 @@ interface PassengerRouteTrackingScreenProps {
   accessToken: string;
   onBack: () => void;
   onCheckout: () => void;
+  onOpenIncidentReport?: () => void;
 }
 
 function haversineMeters(a: LatLng, b: LatLng): number {
@@ -162,6 +165,7 @@ export default function PassengerRouteTrackingScreen({
   accessToken,
   onBack,
   onCheckout,
+  onOpenIncidentReport,
 }: PassengerRouteTrackingScreenProps) {
   const [tripData, setTripData] = useState<PassengerTripTrackingData | null>(null);
   const [liveLocation, setLiveLocation] = useState<LiveBusLocation | null>(null);
@@ -170,6 +174,7 @@ export default function PassengerRouteTrackingScreen({
   const [hasBoarded, setHasBoarded] = useState(false);
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
+  const [communityIncidents, setCommunityIncidents] = useState<PassengerIncident[]>([]);
 
   const animatedCoordinate = useRef(
     new AnimatedRegion({
@@ -416,6 +421,34 @@ export default function PassengerRouteTrackingScreen({
     };
   }, [tripId]);
 
+  useEffect(() => {
+    if (!tripId) return;
+
+    let cancelled = false;
+
+    async function loadIncidents() {
+      try {
+        const incidents = await getMapIncidents(tripId);
+        if (!cancelled) {
+          setCommunityIncidents(incidents);
+        }
+      } catch {
+        if (!cancelled) {
+          setCommunityIncidents([]);
+        }
+      }
+    }
+
+    loadIncidents();
+
+    const interval = setInterval(loadIncidents, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [tripId]);
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -480,6 +513,22 @@ export default function PassengerRouteTrackingScreen({
             <Text style={styles.busMarkerText}>{tripData.code}</Text>
           </View>
         </Marker.Animated>
+
+        {communityIncidents.map((incident) => (
+          <Marker
+            key={incident.id}
+            coordinate={{
+              latitude: incident.latitude,
+              longitude: incident.longitude,
+            }}
+            title={incident.type}
+            description={incident.description || ""}
+          >
+            <View style={styles.incidentMarker}>
+              <Text style={styles.incidentMarkerText}>!</Text>
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
       <View style={styles.topBar}>
@@ -575,6 +624,17 @@ export default function PassengerRouteTrackingScreen({
             <Text style={styles.primaryButtonText}>Comprar boleto</Text>
           </Pressable>
         </View>
+
+        {onOpenIncidentReport && (
+          <Pressable
+            style={styles.incidentReportBtn}
+            onPress={onOpenIncidentReport}
+          >
+            <Text style={styles.incidentReportBtnText}>
+              Reportar incidente en la ruta
+            </Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={[styles.confirmButton, hasBoarded && styles.disabledButton]}
@@ -784,4 +844,34 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#0F2141", fontWeight: "900" },
   disabledButton: { backgroundColor: "#E7F7EE" },
   boardedNote: { color: "#087D3B", fontWeight: "900", marginTop: 10 },
+  incidentMarker: {
+    backgroundColor: "#B4241C",
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  incidentMarkerText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  incidentReportBtn: {
+    backgroundColor: "#FCE9E7",
+    borderRadius: 18,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: "#B4241C",
+  },
+  incidentReportBtnText: {
+    color: "#B4241C",
+    fontWeight: "900",
+    fontSize: 14,
+  },
 });

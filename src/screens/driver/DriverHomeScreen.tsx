@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,11 +9,13 @@ import {
   Text,
   View,
 } from "react-native";
+import * as Location from "expo-location";
 import {
   AuthUser,
   DriverTrip,
   cancelDriverTrip,
   completeDriverTrip,
+  createDriverIncident,
   getAssignedDriverTrips,
   startDriverTrip,
 } from "../../services/apiClient";
@@ -58,7 +60,8 @@ export default function DriverHomeScreen({
   const [isBusy, setIsBusy] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-
+  const [currentSpeed, setCurrentSpeed] = useState(0);
+  const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   const activeTrip = useMemo(
     () => assignedTrips.find((trip) => trip.status === "In_Progress") || null,
     [assignedTrips],
@@ -106,6 +109,49 @@ export default function DriverHomeScreen({
       isMounted = false;
     };
   }, [accessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        return;
+      }
+
+      const sub = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 0,
+        },
+        (loc) => {
+          if (!cancelled) {
+            const rawSpeedMs = loc.coords.speed ?? 0;
+            const speedKmh = rawSpeedMs >= 1
+              ? Number((rawSpeedMs * 3.6).toFixed(1))
+              : 0;
+            setCurrentSpeed(speedKmh);
+          }
+        },
+      );
+
+      if (!cancelled) {
+        locationSubRef.current = sub;
+      } else {
+        sub.remove();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (locationSubRef.current) {
+        locationSubRef.current.remove();
+        locationSubRef.current = null;
+      }
+    };
+  }, []);
 
   function resetMessages() {
     setStatusMessage("");
@@ -159,6 +205,94 @@ export default function DriverHomeScreen({
     } finally {
       setIsBusy(false);
     }
+  }
+
+  async function submitPanicIncident(incidentType: string) {
+    if (!activeTrip) {
+      return;
+    }
+
+    setIsBusy(true);
+
+    try {
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      await createDriverIncident(
+        {
+          trip_id: activeTrip.id,
+          type: incidentType,
+          description: "Reporte de panico del conductor.",
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        },
+        accessToken,
+      );
+
+      Alert.alert("Reporte enviado", "El incidente ha sido registrado.");
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "No se pudo enviar el reporte.",
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  function handlePanicIncident() {
+    if (!activeTrip) {
+      return;
+    }
+
+    if (currentSpeed > 0) {
+      Alert.alert(
+        "Accion bloqueada",
+        "El boton de panico solo esta disponible con el vehiculo detenido.",
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Reportar incidente critico",
+      "Selecciona el tipo de incidente:",
+      [
+        {
+          text: "Accidente",
+          onPress: () => {
+            void submitPanicIncident("Accident");
+          },
+        },
+        {
+          text: "Falla mecanica",
+          onPress: () => {
+            void submitPanicIncident("Mechanical_Failure");
+          },
+        },
+        {
+          text: "Problema de via",
+          onPress: () => {
+            void submitPanicIncident("Road_Problem");
+          },
+        },
+        {
+          text: "Demora",
+          onPress: () => {
+            void submitPanicIncident("Delay");
+          },
+        },
+        {
+          text: "Otro",
+          onPress: () => {
+            void submitPanicIncident("Other");
+          },
+        },
+        { text: "Cancelar", style: "cancel" },
+      ],
+    );
   }
 
   async function finishTrip(mode: "complete" | "cancel") {
@@ -283,9 +417,29 @@ export default function DriverHomeScreen({
                 onPress={onOpenScanner}
                 disabled={isBusy}
               >
-                <Text style={styles.scanButtonText}>Escanear Código QR</Text>
+                <Text style={styles.scanButtonText}>Escanear Codigo QR</Text>
               </Pressable>
             )}
+
+            <Pressable
+              style={[
+                styles.panicButton,
+                currentSpeed > 0 && styles.panicButtonDisabled,
+              ]}
+              onPress={handlePanicIncident}
+              disabled={isBusy || currentSpeed > 0}
+            >
+              <Text
+                style={[
+                  styles.panicButtonText,
+                  currentSpeed > 0 && styles.panicButtonTextDisabled,
+                ]}
+              >
+                {currentSpeed > 0
+                  ? `Bloqueado (${currentSpeed} km/h)`
+                  : "Reportar incidente critico"}
+              </Text>
+            </Pressable>
 
             <View style={styles.rowButtons}>
               <Pressable
@@ -535,5 +689,24 @@ const styles = StyleSheet.create({
   },
   inlineSpinner: {
     marginTop: 20,
+  },
+  panicButton: {
+    backgroundColor: "#B4241C",
+    borderRadius: 18,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  panicButtonDisabled: {
+    backgroundColor: "#E4E7EB",
+  },
+  panicButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  panicButtonTextDisabled: {
+    color: "#8A94A6",
   },
 });

@@ -1,4 +1,9 @@
 import { env } from "../config/env";
+import type {
+  PassengerIncident,
+  PassengerIncidentDraft,
+  PassengerIncidentResponse,
+} from "../types/incident.types";
 
 export type UserRole = "Passenger" | "Driver" | "Admin";
 
@@ -753,4 +758,35 @@ export async function getPassengerHomeTripsPreview(
       routeName: route?.name || "Ruta disponible",
     };
   });
+}
+
+export async function createPassengerIncident(
+  payload: PassengerIncidentDraft,
+  token?: string,
+): Promise<PassengerIncidentResponse> {
+  return apiRequest<PassengerIncidentResponse>("/passenger/incidents", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+}
+
+export async function createDriverIncident(
+  payload: PassengerIncidentDraft,
+  token?: string,
+): Promise<PassengerIncidentResponse> {
+  return apiRequest<PassengerIncidentResponse>("/driver/incidents", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+}
+
+export async function getMapIncidents(
+  tripId: string,
+): Promise<PassengerIncident[]> {
+  return apiRequest<PassengerIncident[]>(
+    `/incidents/map?trip_id=${encodeURIComponent(tripId)}`,
+    { method: "GET" },
+  );
 }
