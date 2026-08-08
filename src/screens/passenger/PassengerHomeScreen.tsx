@@ -15,7 +15,9 @@ import * as Notifications from "expo-notifications";
 import {
   AuthUser,
   getPassengerHomeTripsPreview,
+  getTripStops,
   PassHomeTripsPreview,
+  StopRaw,
   watchStop,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
@@ -36,6 +38,7 @@ interface LiveBusPosition {
 }
 
 interface StopMarker {
+  id: string | null;
   latitude: number;
   longitude: number;
   label: string;
@@ -101,6 +104,7 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
   const markers: StopMarker[] = [];
   markers.push({
     ...coords[0],
+    id: null,
     label: "Abordaje",
     index: 0,
     isBoarding: true,
@@ -112,6 +116,7 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
       if (markers.length >= 6) break;
       markers.push({
         ...coords[i],
+        id: null,
         label: `Parada ${markers.length}`,
         index: i,
         isBoarding: false,
@@ -122,6 +127,7 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
   if (coords.length > 1) {
     markers.push({
       ...coords[coords.length - 1],
+      id: null,
       label: "Destino",
       index: coords.length - 1,
       isBoarding: false,
@@ -129,6 +135,20 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
     });
   }
   return markers;
+}
+
+function buildStopMarkersFromRouteStops(routeStops: StopRaw[]): StopMarker[] {
+  return [...routeStops]
+    .sort((a, b) => a.stop_order - b.stop_order)
+    .map((stop, position, all) => ({
+      id: stop.id,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      label: stop.name,
+      index: position,
+      isBoarding: position === 0,
+      isDestination: position === all.length - 1,
+    }));
 }
 
 export default function PassengerHomeScreen({
@@ -147,6 +167,8 @@ export default function PassengerHomeScreen({
   const [liveLocation, setLiveLocation] = useState<LiveBusPosition | null>(null);
   const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
   const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
+  const [routeStops, setRouteStops] = useState<StopRaw[]>([]);
+  const [stopWatchError, setStopWatchError] = useState("");
 
   const mapRef = useRef<MapView>(null);
   const wasNearBoarding = useRef(false);
@@ -175,8 +197,11 @@ export default function PassengerHomeScreen({
   );
 
   const stopMarkers = useMemo(
-    () => buildStopMarkers(routeCoords),
-    [routeCoords],
+    () =>
+      routeStops.length > 0
+        ? buildStopMarkersFromRouteStops(routeStops)
+        : buildStopMarkers(routeCoords),
+    [routeCoords, routeStops],
   );
 
   const stopMarkerCoords = useMemo(
@@ -225,6 +250,7 @@ export default function PassengerHomeScreen({
     setLiveLocation(null);
     setSelectedStopIndex(null);
     setWatchedStopId(null);
+    setStopWatchError("");
     wasNearBoarding.current = false;
     missedAlertShown.current = false;
   }
@@ -232,11 +258,24 @@ export default function PassengerHomeScreen({
   async function handleSelectStop(marker: StopMarker) {
     setSelectedStopIndex(marker.index);
     if (!selectedTripId) return;
+    if (!marker.id) {
+      setWatchedStopId(null);
+      setStopWatchError(
+        "Esta parada es aproximada y no se puede registrar en el servidor.",
+      );
+      return;
+    }
     try {
-      const result = await watchStop(selectedTripId, `stop-${marker.index}`, accessToken);
+      const result = await watchStop(selectedTripId, marker.id, accessToken);
       setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${marker.index}`);
+      setStopWatchError("");
+    } catch (error) {
+      setWatchedStopId(null);
+      setStopWatchError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar la parada seleccionada.",
+      );
     }
   }
 
@@ -323,6 +362,25 @@ export default function PassengerHomeScreen({
   useEffect(() => {
     loadTrips();
   }, [accessToken]);
+
+  useEffect(() => {
+    const routeId = selectedTrip?.routeId;
+    if (!routeId) {
+      setRouteStops([]);
+      return;
+    }
+    let isMounted = true;
+    getTripStops(routeId, accessToken)
+      .then((stops) => {
+        if (isMounted) setRouteStops(stops || []);
+      })
+      .catch(() => {
+        if (isMounted) setRouteStops([]);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, selectedTrip?.routeId]);
 
   useEffect(() => {
     if (!selectedTripId) {
@@ -455,6 +513,16 @@ export default function PassengerHomeScreen({
             </View>
           )}
         </View>
+
+        {selectedTrip && routeStops.length === 0 ? (
+          <Text style={styles.stopHintText}>
+            Paradas aproximadas: esta ruta todavía no tiene paradas registradas.
+          </Text>
+        ) : null}
+
+        {stopWatchError ? (
+          <Text style={styles.stopErrorText}>{stopWatchError}</Text>
+        ) : null}
 
         {selectedTrip && (
           <View style={styles.selectedBar}>
@@ -708,6 +776,18 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   busMarkerLiveText: { color: "#0F2141", fontWeight: "900", fontSize: 11 },
+  stopHintText: {
+    color: "#8A94A6",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  stopErrorText: {
+    color: "#A6231E",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
   selectedBar: {
     flexDirection: "row",
     alignItems: "center",
