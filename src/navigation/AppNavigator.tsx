@@ -1,7 +1,10 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { supabase } from "../lib/supabase";
+import { stopDriverTracking } from "../services/driverLocationService";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
 import DriverScannerScreen from "../screens/driver/DriverScannerScreen";
 import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
@@ -29,6 +32,46 @@ export default function AppNavigator() {
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function restoreSession() {
+      const stored = await supabase.auth.getSession().catch(() => null);
+
+      if (stored?.data.session) {
+        await supabase.auth.signOut().catch(() => undefined);
+      }
+
+      if (isMounted) {
+        setIsRestoringSession(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const isPassenger = session?.user.role === "Passenger";
+
+  const handleNotificationTripId = useCallback(
+    (tripId: string) => {
+      setSelectedTripId(tripId);
+      setGeneratedTicket(null);
+      setCurrentScreen("passenger-tracking");
+    },
+    [],
+  );
+
+  usePushNotifications({
+    accessToken: session?.access_token || "",
+    enabled: isPassenger,
+    onNotificationTripId: handleNotificationTripId,
+  });
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
@@ -51,7 +94,10 @@ export default function AppNavigator() {
     setCurrentScreen("login");
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await stopDriverTracking().catch(() => undefined);
+    await supabase.auth.signOut().catch(() => undefined);
+
     setSession(null);
     setSelectedTripId(null);
     setGeneratedTicket(null);
@@ -100,6 +146,14 @@ export default function AppNavigator() {
     setCurrentScreen("driver-scanner");
   }
 
+  if (isRestoringSession) {
+    return (
+      <View style={styles.placeholderScreen}>
+        <ActivityIndicator color="#0F2141" size="large" />
+      </View>
+    );
+  }
+
   if (currentScreen === "register") {
     return (
       <View style={styles.screen}>
@@ -144,7 +198,7 @@ export default function AppNavigator() {
       <PassengerPaymentScreen
         tripId={selectedTripId}
         accessToken={session.access_token}
-        isSeniorPassenger={false}
+        isSeniorPassenger={!!session.user.is_senior}
         onBack={() => setCurrentScreen("passenger-tracking")}
         onPaymentSuccess={handlePaymentSuccess}
       />
