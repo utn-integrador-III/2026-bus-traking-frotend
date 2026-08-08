@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import MapView, { AnimatedRegion, LatLng, Marker, Polyline } from "react-native-maps";
+import * as Notifications from "expo-notifications";
 import {
   AuthUser,
   getPassengerHomeTripsPreview,
@@ -18,10 +19,13 @@ import {
   watchStop,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
+import {
+  BOARDING_RADIUS_METERS,
+  GEOFENCE_RADIUS_METERS,
+} from "../../config/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MAP_HEIGHT = SCREEN_WIDTH * 0.7;
-const BOARDING_RADIUS = 150;
 
 interface LiveBusPosition {
   latitude: number;
@@ -148,6 +152,8 @@ export default function PassengerHomeScreen({
   const wasNearBoarding = useRef(false);
   const missedAlertShown = useRef(false);
   const realtimeChannel = useRef<any>(null);
+  const boardingNodeRef = useRef<LatLng | null>(null);
+  const selectedStopIndexRef = useRef<number | null>(null);
 
   const animatedCoord = useRef(
     new AnimatedRegion({
@@ -267,13 +273,14 @@ export default function PassengerHomeScreen({
   }
 
   function evaluateBoardingPass(busPos: LatLng) {
-    if (!boardingNode || selectedStopIndex !== null) return;
-    const dist = haversineMeters(busPos, boardingNode);
-    if (dist <= BOARDING_RADIUS) {
+    const boarding = boardingNodeRef.current;
+    if (!boarding || selectedStopIndexRef.current !== null) return;
+    const dist = haversineMeters(busPos, boarding);
+    if (dist <= BOARDING_RADIUS_METERS) {
       wasNearBoarding.current = true;
       return;
     }
-    if (wasNearBoarding.current && dist > BOARDING_RADIUS) {
+    if (wasNearBoarding.current && dist > BOARDING_RADIUS_METERS) {
       wasNearBoarding.current = false;
       handleMissedBus();
     }
@@ -292,6 +299,14 @@ export default function PassengerHomeScreen({
       } as any)
       .start();
   }
+
+  useEffect(() => {
+    boardingNodeRef.current = boardingNode;
+  }, [boardingNode]);
+
+  useEffect(() => {
+    selectedStopIndexRef.current = selectedStopIndex;
+  }, [selectedStopIndex]);
 
   useEffect(() => {
     if (mapRef.current && routeCoords.length > 0) {
@@ -341,10 +356,15 @@ export default function PassengerHomeScreen({
       .channel(`home:passenger:${user.id}:alerts`)
       .on("broadcast", { event: "bus_approaching" }, (payload: any) => {
         const data = payload?.payload || payload;
-        Alert.alert(
-          "Bus acercándose",
-          `El bus está a menos de 500m de tu parada. Preparate para abordar.`,
-        );
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: "Bus acercandose",
+            body: `El bus esta a menos de ${GEOFENCE_RADIUS_METERS}m de tu parada. Preparate para abordar.`,
+            data: { trip_id: data?.trip_id || selectedTripId, type: "geofence_alert" },
+            sound: true,
+          },
+          trigger: null,
+        });
       })
       .subscribe();
     return () => {

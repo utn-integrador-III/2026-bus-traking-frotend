@@ -1,11 +1,12 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { reportDriverLocation } from "./apiClient";
+import { ApiClientError, reportDriverLocation } from "./apiClient";
 
 export const DRIVER_LOCATION_TASK = "driver-location-tracking";
 
 const STORAGE_KEY = "driver.tracking.session";
+const AUTH_ERROR_KEY = "driver.tracking.auth-error";
 
 interface TrackingSession {
   tripId: string;
@@ -71,6 +72,34 @@ async function clearSession(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
 
+function isUnauthorizedError(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 401;
+}
+
+async function flagAuthError(): Promise<void> {
+  await AsyncStorage.setItem(AUTH_ERROR_KEY, "1");
+}
+
+export async function consumeDriverTrackingAuthError(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(AUTH_ERROR_KEY);
+
+  if (!raw) {
+    return false;
+  }
+
+  await AsyncStorage.removeItem(AUTH_ERROR_KEY);
+  return true;
+}
+
+async function handleTrackingReportError(error: unknown): Promise<void> {
+  if (!isUnauthorizedError(error)) {
+    return;
+  }
+
+  await flagAuthError();
+  await stopDriverTracking().catch(() => undefined);
+}
+
 TaskManager.defineTask(
   DRIVER_LOCATION_TASK,
   async ({ data, error }: BackgroundLocationTaskParams) => {
@@ -106,30 +135,13 @@ TaskManager.defineTask(
         },
         session.token,
       );
-    } catch {
-      // A temporary network failure is ignored; the next tracking tick will retry.
+    } catch (error) {
+      await handleTrackingReportError(error);
     }
   },
 );
 
 let foregroundSubscription: Location.LocationSubscription | null = null;
-
-export async function ensureLocationPermissions(): Promise<boolean> {
-  const foreground = await Location.requestForegroundPermissionsAsync();
-
-  if (foreground.status !== "granted") {
-    return false;
-  }
-
-  try {
-    const background = await Location.requestBackgroundPermissionsAsync();
-    return background.status === "granted";
-  } catch (error) {
-    // In Expo Go on iOS, requesting background permissions throws an Info.plist error.
-    console.warn("Background location permission error (likely Expo Go iOS):", error);
-    return false;
-  }
-}
 
 export async function isDriverTrackingActive(): Promise<boolean> {
   const backgroundActive = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
@@ -145,12 +157,15 @@ export async function startDriverTracking(
     throw new Error("Se requieren permisos de ubicación para transmitir la ruta.");
   }
 
+  await AsyncStorage.removeItem(AUTH_ERROR_KEY);
   await writeSession({ tripId, token });
 
   const alreadyRunning = await isDriverTrackingActive();
   if (alreadyRunning) {
     await stopDriverTracking();
   }
+
+  await writeSession({ tripId, token });
 
   let backgroundGranted = false;
   try {
@@ -202,7 +217,7 @@ export async function startDriverTracking(
           token,
         );
       } catch (err) {
-        // Ignore network errors
+        await handleTrackingReportError(err);
       }
     }
   );

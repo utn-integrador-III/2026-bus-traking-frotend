@@ -137,7 +137,7 @@ function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
 
 function buildStatusLabel(status: TripStatus): string {
   if (status === "Delayed") return "Delayed";
-  if (status === "In Progress") return "In Progress";
+  if (status === "In_Progress") return "In Progress";
   if (status === "Stopped") return "Stopped";
   if (status === "Scheduled" || status === "Pending") return "Scheduled";
   return String(status);
@@ -174,7 +174,6 @@ export default function PassengerRouteTrackingScreen({
   const [hasBoarded, setHasBoarded] = useState(false);
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
-  const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
   const [communityIncidents, setCommunityIncidents] = useState<PassengerIncident[]>([]);
 
   const animatedCoordinate = useRef(
@@ -249,12 +248,7 @@ export default function PassengerRouteTrackingScreen({
     selectedStopIdxRef.current = stop.index;
     wasInsideBoardingZone.current = false;
     missedAlertShown.current = false;
-    try {
-      const result = await watchStop(tripId, `stop-${stop.index}`, accessToken);
-      setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${stop.index}`);
-    }
+    await watchStop(tripId, `stop-${stop.index}`, accessToken).catch(() => {});
   }
 
   function triggerMissedBusAlert() {
@@ -301,8 +295,10 @@ export default function PassengerRouteTrackingScreen({
   }
 
   function evaluateBoardingGeofence(busPoint: LatLng) {
-    if (!currentStop || hasBoardedRef.current) return;
-    const distance = haversineMeters(busPoint, currentStop.coordinate);
+    const stops = stopPointsRef.current;
+    const stop = stops[selectedStopIdxRef.current] || stops[0] || null;
+    if (!stop || hasBoardedRef.current) return;
+    const distance = haversineMeters(busPoint, stop.coordinate);
     const isInside = distance <= BOARDING_RADIUS_METERS;
     if (isInside) {
       wasInsideBoardingZone.current = true;
@@ -327,8 +323,9 @@ export default function PassengerRouteTrackingScreen({
   }
 
   async function refreshEta(busPoint: LatLng) {
+    const stops = stopPointsRef.current;
     const destination =
-      stopPoints.length > 0 ? stopPoints[stopPoints.length - 1].coordinate : null;
+      stops.length > 0 ? stops[stops.length - 1].coordinate : null;
     if (!destination) return;
     const now = Date.now();
     if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) return;
@@ -423,11 +420,6 @@ export default function PassengerRouteTrackingScreen({
       supabase.removeChannel(channel);
     };
   }, [tripId]);
-
-  useEffect(() => {
-    if (!selectedStopIdx) return;
-    watchStop(tripId, `stop-${selectedStopIdx}`, accessToken).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!tripId) return;
@@ -557,7 +549,7 @@ export default function PassengerRouteTrackingScreen({
               styles.statusBadge,
               currentStatus === "Delayed"
                 ? styles.delayedBadge
-                : currentStatus === "In Progress"
+                : currentStatus === "In_Progress"
                   ? styles.progressBadge
                   : styles.scheduledBadge,
             ]}
