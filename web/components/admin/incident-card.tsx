@@ -32,9 +32,9 @@ export function IncidentCard({ incident }: { incident: AdminIncident }) {
   const [error, setError] = useState<string | null>(null);
 
   const label = TYPE_LABELS[incident.type] ?? incident.type;
-  const decided = incident.moderation_status !== "pending";
+  const decided = incident.status !== "Pending";
 
-  function decide(moderationStatus: "validated" | "dismissed") {
+  function decide(moderationStatus: "Validated" | "Dismissed") {
     setError(null);
     startTransition(async () => {
       const result = await moderateIncidentAction(incident.id, moderationStatus);
@@ -53,16 +53,16 @@ export function IncidentCard({ incident }: { incident: AdminIncident }) {
         </div>
         <Badge
           tone={
-            incident.moderation_status === "validated"
+            incident.status === "Validated"
               ? "success"
-              : incident.moderation_status === "dismissed"
+              : incident.status === "Dismissed"
                 ? "danger"
                 : "warning"
           }
         >
-          {incident.moderation_status === "validated"
+          {incident.status === "Validated"
             ? "Validado"
-            : incident.moderation_status === "dismissed"
+            : incident.status === "Dismissed"
               ? "Descartado"
               : "Pendiente"}
         </Badge>
@@ -88,7 +88,7 @@ export function IncidentCard({ incident }: { incident: AdminIncident }) {
         <div className="mt-4 flex gap-2 border-t border-divider pt-4">
           <button
             type="button"
-            onClick={() => decide("validated")}
+            onClick={() => decide("Validated")}
             disabled={pending}
             className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-success-bg text-sm font-bold text-success transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -96,7 +96,7 @@ export function IncidentCard({ incident }: { incident: AdminIncident }) {
           </button>
           <button
             type="button"
-            onClick={() => decide("dismissed")}
+            onClick={() => decide("Dismissed")}
             disabled={pending}
             className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-danger-bg text-sm font-bold text-danger transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >

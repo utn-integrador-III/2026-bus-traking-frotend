@@ -89,7 +89,7 @@ export function getIncidents(status?: IncidentModerationStatus) {
 export function moderateIncident(id: string, moderationStatus: IncidentModerationStatus) {
   return call<AdminIncident>(`/admin/incidents/${id}`, {
     method: "PUT",
-    body: { moderation_status: moderationStatus },
+    body: { status: moderationStatus },
   });
 }
 

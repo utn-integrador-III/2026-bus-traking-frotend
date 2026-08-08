@@ -14,9 +14,9 @@ export const dynamic = "force-dynamic";
 
 const TABS: { value: "all" | IncidentModerationStatus; label: string }[] = [
   { value: "all", label: "Todas" },
-  { value: "pending", label: "Pendientes" },
-  { value: "validated", label: "Validadas" },
-  { value: "dismissed", label: "Descartadas" },
+  { value: "Pending", label: "Pendientes" },
+  { value: "Validated", label: "Validadas" },
+  { value: "Dismissed", label: "Descartadas" },
 ];
 
 export default async function IncidentsPage({
@@ -26,7 +26,7 @@ export default async function IncidentsPage({
 }) {
   const { status } = await searchParams;
   const active =
-    status === "pending" || status === "validated" || status === "dismissed"
+    status === "Pending" || status === "Validated" || status === "Dismissed"
       ? status
       : "all";
 

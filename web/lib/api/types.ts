@@ -64,7 +64,11 @@ export type AdminBus = {
   created_at: string;
 };
 
-export type IncidentModerationStatus = "pending" | "validated" | "dismissed";
+export type IncidentModerationStatus =
+  | "Pending"
+  | "Validated"
+  | "Archived"
+  | "Dismissed";
 
 export type AdminIncident = {
   id: string;
@@ -75,7 +79,7 @@ export type AdminIncident = {
   latitude: number;
   longitude: number;
   timestamp: string;
-  moderation_status: IncidentModerationStatus;
+  status: IncidentModerationStatus;
 };
 
 export type SessionUser = {
