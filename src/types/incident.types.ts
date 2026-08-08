@@ -9,12 +9,26 @@ export interface PassengerIncidentDraft {
 export interface PassengerIncident extends PassengerIncidentDraft {
   id: string;
   timestamp: string;
+  user_id: string;
+  moderation_status: string;
 }
 
 export interface PassengerIncidentResponse {
   incident_id: string;
   incident: PassengerIncident;
 }
+
+export const INCIDENT_TYPES = [
+  "Accident",
+  "Delay",
+  "Traffic_Congestion",
+  "Overcrowding",
+  "Road_Problem",
+  "Mechanical_Failure",
+  "Other",
+] as const;
+
+export type IncidentType = (typeof INCIDENT_TYPES)[number];
 
 export interface OfflineIncidentQueueItem {
   id: number;

@@ -1,7 +1,10 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { supabase } from "../lib/supabase";
+import { stopDriverTracking } from "../services/driverLocationService";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
 import DriverScannerScreen from "../screens/driver/DriverScannerScreen";
 import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
@@ -10,6 +13,7 @@ import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScr
 import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
 import { useOfflineIncidentSync } from "../hooks/useOfflineIncidentSync";
+import PassengerIncidentScreen from "../screens/passenger/PassengerIncidentScreen";
 import { LoginResponse } from "../services/apiClient";
 import { Ticket } from "../services/ticketService";
 
@@ -21,6 +25,7 @@ type AppScreen =
   | "passenger-payment"
   | "passenger-my-tickets"
   | "passenger-boarding-pass"
+  | "passenger-incident"
   | "driver-home"
   | "driver-scanner"
   | "admin-dashboard";
@@ -30,6 +35,46 @@ export default function AppNavigator() {
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function restoreSession() {
+      const stored = await supabase.auth.getSession().catch(() => null);
+
+      if (stored?.data.session) {
+        await supabase.auth.signOut().catch(() => undefined);
+      }
+
+      if (isMounted) {
+        setIsRestoringSession(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const isPassenger = session?.user.role === "Passenger";
+
+  const handleNotificationTripId = useCallback(
+    (tripId: string) => {
+      setSelectedTripId(tripId);
+      setGeneratedTicket(null);
+      setCurrentScreen("passenger-tracking");
+    },
+    [],
+  );
+
+  usePushNotifications({
+    accessToken: session?.access_token || "",
+    enabled: isPassenger,
+    onNotificationTripId: handleNotificationTripId,
+  });
 
   useOfflineIncidentSync(session);
 
@@ -54,7 +99,10 @@ export default function AppNavigator() {
     setCurrentScreen("login");
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await stopDriverTracking().catch(() => undefined);
+    await supabase.auth.signOut().catch(() => undefined);
+
     setSession(null);
     setSelectedTripId(null);
     setGeneratedTicket(null);
@@ -103,6 +151,18 @@ export default function AppNavigator() {
     setCurrentScreen("driver-scanner");
   }
 
+  function handleOpenIncidentReport() {
+    setCurrentScreen("passenger-incident");
+  }
+
+  if (isRestoringSession) {
+    return (
+      <View style={styles.placeholderScreen}>
+        <ActivityIndicator color="#0F2141" size="large" />
+      </View>
+    );
+  }
+
   if (currentScreen === "register") {
     return (
       <View style={styles.screen}>
@@ -112,7 +172,7 @@ export default function AppNavigator() {
           </Pressable>
         </View>
 
-        <RegisterPassengerScreen />
+        <RegisterPassengerScreen onRegistered={() => setCurrentScreen("login")} />
       </View>
     );
   }
@@ -138,6 +198,7 @@ export default function AppNavigator() {
         accessToken={session.access_token}
         onBack={handleBackFromTracking}
         onCheckout={handleCheckout}
+        onOpenIncidentReport={handleOpenIncidentReport}
       />
     );
   }
@@ -147,7 +208,7 @@ export default function AppNavigator() {
       <PassengerPaymentScreen
         tripId={selectedTripId}
         accessToken={session.access_token}
-        isSeniorPassenger={false}
+        isSeniorPassenger={!!session.user.is_senior}
         onBack={() => setCurrentScreen("passenger-tracking")}
         onPaymentSuccess={handlePaymentSuccess}
       />
@@ -170,6 +231,17 @@ export default function AppNavigator() {
         ticket={generatedTicket}
         onBackHome={() => setCurrentScreen("passenger-home")}
         onBackToTrip={() => setCurrentScreen("passenger-tracking")}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-incident" && session && selectedTripId) {
+    return (
+      <PassengerIncidentScreen
+        tripId={selectedTripId}
+        accessToken={session.access_token}
+        onBack={() => setCurrentScreen("passenger-tracking")}
+        onSubmitted={() => setCurrentScreen("passenger-tracking")}
       />
     );
   }
