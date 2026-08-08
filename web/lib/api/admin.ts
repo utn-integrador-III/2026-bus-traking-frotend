@@ -112,17 +112,10 @@ export function createTrip(input: AdminTripInput) {
   return call<AdminTrip>("/admin/trips", { method: "POST", body: input });
 }
 
-<<<<<<< HEAD
-export function moderateIncident(id: string, moderationStatus: IncidentModerationStatus) {
-  return call<AdminIncident>(`/admin/incidents/${id}`, {
-    method: "PUT",
-    body: { status: moderationStatus },
-=======
 export function updateTripStatus(id: string, status: TripStatus) {
   return call<AdminTrip>(`/admin/trips/${id}/status`, {
     method: "PATCH",
     body: { status },
->>>>>>> origin/dev
   });
 }
 

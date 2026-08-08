@@ -89,15 +89,7 @@ export type AdminBus = {
   status: string;
 };
 
-<<<<<<< HEAD
-export type IncidentModerationStatus =
-  | "Pending"
-  | "Validated"
-  | "Archived"
-  | "Dismissed";
-=======
 export type IncidentStatus = "Pending" | "Validated" | "Archived" | "Dismissed";
->>>>>>> origin/dev
 
 export type AdminIncident = {
   id: string;
@@ -108,9 +100,6 @@ export type AdminIncident = {
   latitude: number;
   longitude: number;
   timestamp: string;
-<<<<<<< HEAD
-  status: IncidentModerationStatus;
-=======
   status: IncidentStatus;
 };
 
@@ -126,7 +115,6 @@ export type CurrentTelemetry = TelemetryPoint & {
   trip_id: string;
   route_id: string | null;
   status: TripStatus;
->>>>>>> origin/dev
 };
 
 export type SessionUser = {

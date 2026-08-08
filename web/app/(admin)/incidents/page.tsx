@@ -18,19 +18,11 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "Dismissed", label: "Descartadas" },
 ];
 
-<<<<<<< HEAD
-const TABS: { value: "all" | IncidentModerationStatus; label: string }[] = [
-  { value: "all", label: "Todas" },
-  { value: "Pending", label: "Pendientes" },
-  { value: "Validated", label: "Validadas" },
-  { value: "Dismissed", label: "Descartadas" },
-=======
 const VALID_STATUSES: IncidentStatus[] = [
   "Pending",
   "Validated",
   "Archived",
   "Dismissed",
->>>>>>> origin/dev
 ];
 
 export default async function IncidentsPage({
@@ -39,17 +31,10 @@ export default async function IncidentsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
-<<<<<<< HEAD
-  const active =
-    status === "Pending" || status === "Validated" || status === "Dismissed"
-      ? status
-      : "all";
-=======
   const statusFilter =
     status && VALID_STATUSES.includes(status as IncidentStatus)
       ? (status as IncidentStatus)
       : undefined;
->>>>>>> origin/dev
 
   const [incidentsResult, tripsResult, routesResult] = await Promise.all([
     getIncidents(statusFilter),
