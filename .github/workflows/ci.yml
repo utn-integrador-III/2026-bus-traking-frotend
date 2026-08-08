@@ -31,6 +31,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - run: npm run mobile:typecheck
       - run: npm run design:typecheck
       - run: npm run web:typecheck
 

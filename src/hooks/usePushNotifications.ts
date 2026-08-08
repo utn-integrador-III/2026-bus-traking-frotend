@@ -14,9 +14,12 @@ interface UsePushNotificationsOptions {
   onNotificationTripId?: (tripId: string) => void;
 }
 
+export type PushTokenRegistrationState = "idle" | "registered" | "failed";
+
 interface UsePushNotificationsResult {
   expoPushToken: string | null;
   permissionGranted: boolean;
+  tokenRegistrationState: PushTokenRegistrationState;
 }
 
 export function usePushNotifications({
@@ -26,6 +29,8 @@ export function usePushNotifications({
 }: UsePushNotificationsOptions): UsePushNotificationsResult {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [tokenRegistrationState, setTokenRegistrationState] =
+    useState<PushTokenRegistrationState>("idle");
   const listenersRef = useRef<{
     foregroundSubscription: ReturnType<typeof setupNotificationListeners> | null;
   }>({ foregroundSubscription: null });
@@ -41,7 +46,10 @@ export function usePushNotifications({
     if (token) {
       setExpoPushToken(token);
       setPermissionGranted(true);
-      await sendPushTokenToBackend(token, accessToken);
+      const registered = await sendPushTokenToBackend(token, accessToken);
+      setTokenRegistrationState(registered ? "registered" : "failed");
+    } else {
+      setTokenRegistrationState("failed");
     }
   }, [enabled, accessToken]);
 
@@ -50,12 +58,10 @@ export function usePushNotifications({
 
     registerToken();
 
-    (globalThis as any).__onNotificationTap = (tripId: string) => {
-      onTripRef.current?.(tripId);
-    };
-
     const { foregroundSubscription, responseSubscription } =
-      setupNotificationListeners();
+      setupNotificationListeners((tripId) => {
+        onTripRef.current?.(tripId);
+      });
     listenersRef.current.foregroundSubscription = {
       foregroundSubscription,
       responseSubscription,
@@ -64,7 +70,6 @@ export function usePushNotifications({
     return () => {
       clearNotificationListeners(listenersRef.current.foregroundSubscription);
       listenersRef.current.foregroundSubscription = null;
-      delete (globalThis as any).__onNotificationTap;
     };
   }, [enabled, registerToken]);
 
@@ -72,7 +77,7 @@ export function usePushNotifications({
     if (!enabled || !accessToken) return;
 
     const handleAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === "active") {
+      if (nextState === "active" && !expoPushToken) {
         registerToken();
       }
     };
@@ -85,7 +90,7 @@ export function usePushNotifications({
     return () => {
       subscription.remove();
     };
-  }, [enabled, accessToken, registerToken]);
+  }, [enabled, accessToken, registerToken, expoPushToken]);
 
-  return { expoPushToken, permissionGranted };
+  return { expoPushToken, permissionGranted, tokenRegistrationState };
 }

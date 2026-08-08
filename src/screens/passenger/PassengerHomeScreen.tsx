@@ -25,6 +25,7 @@ import {
   BOARDING_RADIUS_METERS,
   GEOFENCE_RADIUS_METERS,
 } from "../../config/constants";
+import { isDuplicateGeofenceAlert } from "../../services/notificationService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MAP_HEIGHT = SCREEN_WIDTH * 0.7;
@@ -176,6 +177,8 @@ export default function PassengerHomeScreen({
   const realtimeChannel = useRef<any>(null);
   const boardingNodeRef = useRef<LatLng | null>(null);
   const selectedStopIndexRef = useRef<number | null>(null);
+  const selectedTripIdRef = useRef<string | null>(null);
+  selectedTripIdRef.current = selectedTripId;
 
   const animatedCoord = useRef(
     new AnimatedRegion({
@@ -414,11 +417,17 @@ export default function PassengerHomeScreen({
       .channel(`home:passenger:${user.id}:alerts`)
       .on("broadcast", { event: "bus_approaching" }, (payload: any) => {
         const data = payload?.payload || payload;
+        const tripId = data?.trip_id || selectedTripIdRef.current;
+        if (!tripId || isDuplicateGeofenceAlert(tripId)) return;
         Notifications.scheduleNotificationAsync({
           content: {
             title: "Bus acercandose",
             body: `El bus esta a menos de ${GEOFENCE_RADIUS_METERS}m de tu parada. Preparate para abordar.`,
-            data: { trip_id: data?.trip_id || selectedTripId, type: "geofence_alert" },
+            data: {
+              trip_id: tripId,
+              type: "geofence_alert",
+              source: "local",
+            },
             sound: true,
           },
           trigger: null,
