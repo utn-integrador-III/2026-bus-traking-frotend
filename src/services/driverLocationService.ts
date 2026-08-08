@@ -178,6 +178,8 @@ export async function startDriverTracking(
     await stopDriverTracking();
   }
 
+  await writeSession({ tripId, token });
+
   let backgroundGranted = false;
   try {
     const bgPerm = await Location.requestBackgroundPermissionsAsync();
