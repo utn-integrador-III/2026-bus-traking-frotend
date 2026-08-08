@@ -196,7 +196,6 @@ export async function startDriverTracking(
     }
   }
 
-  // Fallback to foreground tracking (useful for Expo Go iOS)
   foregroundSubscription = await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,

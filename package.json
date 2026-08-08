@@ -13,6 +13,9 @@
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "mobile:typecheck": "tsc -p tsconfig.mobile.json --noEmit",
+    "mobile:lint": "eslint src --config eslint.config.mobile.mjs",
+    "mobile:test": "jest",
+    "mobile:strip:dry": "node tools/strip-comments.mjs --dry-run",
     "mobile:env:check": "node scripts/check-mobile-env.mjs",
     "prepare": "husky",
     "design:typecheck": "npm run typecheck -w @bustrack/design",
@@ -49,8 +52,24 @@
     "react-native-url-polyfill": "^2.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
-    "typescript": "~5.9.2"
+    "jest": "^29.7.0",
+    "jest-expo": "~54.0.0",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.66.0"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/web/",
+      "/packages/"
+    ]
   }
 }

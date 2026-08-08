@@ -17,6 +17,24 @@ npm run web:lint || {
   exit 1
 }
 
+echo "[pre-commit] mobile: tsc --noEmit"
+npm run mobile:typecheck || {
+  echo "[pre-commit] BLOQUEADO: errores de TypeScript en la app móvil (raíz)"
+  exit 1
+}
+
+echo "[pre-commit] mobile: eslint"
+npm run mobile:lint || {
+  echo "[pre-commit] BLOQUEADO: errores de ESLint en la app móvil (raíz)"
+  exit 1
+}
+
+echo "[pre-commit] mobile: jest"
+npm run mobile:test -- --silent || {
+  echo "[pre-commit] BLOQUEADO: tests fallidos en la app móvil (raíz)"
+  exit 1
+}
+
 if command -v gitleaks >/dev/null 2>&1; then
   echo "[pre-commit] gitleaks (staged)"
   gitleaks protect --staged --config .gitleaks.toml --redact --no-banner || {
