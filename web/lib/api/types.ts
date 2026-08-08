@@ -56,26 +56,65 @@ export type AdminTrip = {
   ended_at: string | null;
 };
 
+export type AdminTripInput = {
+  route_id: string;
+  bus_id: string;
+  driver_id: string;
+  departure_time: string;
+};
+
+export type AdminStop = {
+  id: string;
+  route_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  stop_order: number;
+  geofence_radius_meters: number;
+};
+
+export type StopInput = {
+  route_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  stop_order: number;
+  geofence_radius_meters?: number;
+};
+
 export type AdminBus = {
   id: string;
   plate_number: string;
   capacity: number;
   status: string;
-  created_at: string;
 };
 
-export type IncidentModerationStatus = "pending" | "validated" | "dismissed";
+export type IncidentStatus = "Pending" | "Validated" | "Archived" | "Dismissed";
 
 export type AdminIncident = {
   id: string;
   trip_id: string;
   user_id: string;
   type: string;
-  description: string | null;
+  description: string;
   latitude: number;
   longitude: number;
   timestamp: string;
-  moderation_status: IncidentModerationStatus;
+  status: IncidentStatus;
+};
+
+export type TelemetryPoint = {
+  latitude: number;
+  longitude: number;
+  speed: number;
+  heading: number;
+  timestamp: string;
+};
+
+export type CurrentTelemetry = TelemetryPoint & {
+  trip_id: string;
+  route_id: string | null;
+  status: TripStatus;
 };
 
 export type SessionUser = {

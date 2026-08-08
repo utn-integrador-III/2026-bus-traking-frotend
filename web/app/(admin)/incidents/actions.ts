@@ -1,16 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { moderateIncident } from "@/lib/api/admin";
-import type { IncidentModerationStatus } from "@/lib/api/types";
+import { updateIncidentStatus } from "@/lib/api/admin";
+import type { IncidentStatus } from "@/lib/api/types";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
-export async function moderateIncidentAction(
+const ALLOWED_STATUSES: IncidentStatus[] = [
+  "Pending",
+  "Validated",
+  "Archived",
+  "Dismissed",
+];
+
+export async function updateIncidentStatusAction(
   id: string,
-  moderationStatus: IncidentModerationStatus,
+  status: IncidentStatus,
 ): Promise<ActionResult> {
-  const result = await moderateIncident(id, moderationStatus);
+  if (!ALLOWED_STATUSES.includes(status)) {
+    return { ok: false, message: "Estado de moderación inválido." };
+  }
+  const result = await updateIncidentStatus(id, status);
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/incidents");
   return { ok: true };
