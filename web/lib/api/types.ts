@@ -70,7 +70,7 @@ export type AdminStop = {
   latitude: number;
   longitude: number;
   stop_order: number;
-  created_at: string;
+  geofence_radius_meters: number;
 };
 
 export type StopInput = {
@@ -79,6 +79,7 @@ export type StopInput = {
   latitude: number;
   longitude: number;
   stop_order: number;
+  geofence_radius_meters?: number;
 };
 
 export type AdminBus = {
