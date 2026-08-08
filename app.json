@@ -16,7 +16,8 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "location",
-          "fetch"
+          "fetch",
+          "remote-notification"
         ],
         "NSLocationWhenInUseUsageDescription": "Se usa tu ubicacion para transmitir la posicion del bus en tiempo real.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Se usa tu ubicacion en segundo plano para seguir transmitiendo la posicion del bus aunque la app este minimizada o el telefono bloqueado.",
@@ -33,7 +34,8 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS"
       ]
     },
     "plugins": [
@@ -54,7 +56,15 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-web-browser"
+      "expo-sqlite",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#FFA70B",
+          "mode": "production"
+        }
+      ]
     ]
   }
 }
