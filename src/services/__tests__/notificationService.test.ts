@@ -6,11 +6,35 @@ jest.mock("expo-notifications", () => ({
   getExpoPushTokenAsync: jest.fn(),
   addNotificationReceivedListener: jest.fn(),
   addNotificationResponseReceivedListener: jest.fn(),
+  addPushTokenListener: jest.fn(),
+  getLastNotificationResponseAsync: jest.fn(),
   scheduleNotificationAsync: jest.fn(),
   AndroidImportance: { HIGH: 4, DEFAULT: 3 },
 }));
 
-import { GEOFENCE_DEDUPE_WINDOW_MS, isDuplicateGeofenceAlert } from "../notificationService";
+import {
+  GEOFENCE_ALERT_TYPE,
+  GEOFENCE_DEDUPE_WINDOW_MS,
+  isDuplicateGeofenceAlert,
+  isGeofenceAlertData,
+} from "../notificationService";
+
+describe("isGeofenceAlertData", () => {
+  it("matches the backend event field", () => {
+    expect(isGeofenceAlertData({ event: "bus_approaching", trip_id: "t" })).toBe(true);
+  });
+
+  it("matches the legacy type field", () => {
+    expect(isGeofenceAlertData({ type: GEOFENCE_ALERT_TYPE })).toBe(true);
+  });
+
+  it("rejects unrelated payloads", () => {
+    expect(isGeofenceAlertData({ event: "location" })).toBe(false);
+    expect(isGeofenceAlertData({})).toBe(false);
+    expect(isGeofenceAlertData(null)).toBe(false);
+    expect(isGeofenceAlertData(undefined)).toBe(false);
+  });
+});
 
 describe("isDuplicateGeofenceAlert", () => {
   beforeEach(() => {

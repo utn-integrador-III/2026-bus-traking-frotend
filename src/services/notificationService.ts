@@ -3,13 +3,18 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { env } from "../config/env";
 
-export const GEOFENCE_CHANNEL_ID = "geofence-alerts";
+export const GEOFENCE_CHANNEL_ID = "bus-alerts";
 export const GENERAL_CHANNEL_ID = "general";
-export const GEOFENCE_ALERT_TYPE = "geofence_alert";
+export const GEOFENCE_ALERT_TYPE = "bus_approaching";
 export const LOCAL_SOURCE = "local";
 export const GEOFENCE_DEDUPE_WINDOW_MS = 10_000;
 
 const recentGeofenceAlerts = new Map<string, number>();
+
+export function isGeofenceAlertData(data: Record<string, unknown> | null | undefined): boolean {
+  if (!data) return false;
+  return data.event === GEOFENCE_ALERT_TYPE || data.type === GEOFENCE_ALERT_TYPE;
+}
 
 export function dedupeKey(tripId: string | null, stopId?: string | null): string {
   return `${tripId || "unknown"}:${stopId || "unknown"}`;
@@ -35,7 +40,7 @@ Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data;
 
-    if (data?.type === GEOFENCE_ALERT_TYPE && data?.source !== LOCAL_SOURCE) {
+    if (isGeofenceAlertData(data) && data?.source !== LOCAL_SOURCE) {
       if (
         isDuplicateGeofenceAlert(
           typeof data?.trip_id === "string" ? data.trip_id : null,
@@ -184,7 +189,7 @@ export function setupNotificationListeners(
   const foregroundSubscription = Notifications.addNotificationReceivedListener(
     (notification) => {
       const data = notification.request.content.data;
-      if (data?.type !== GEOFENCE_ALERT_TYPE) return;
+      if (!isGeofenceAlertData(data)) return;
       if (data?.source === LOCAL_SOURCE) return;
 
       isDuplicateGeofenceAlert(
@@ -203,6 +208,32 @@ export function setupNotificationListeners(
     });
 
   return { foregroundSubscription, responseSubscription };
+}
+
+export async function getPendingNotificationResponseTripId(): Promise<string | null> {
+  const response = await Notifications.getLastNotificationResponseAsync();
+
+  if (!response) {
+    return null;
+  }
+
+  const data = response.notification.request.content.data;
+
+  if (data?.trip_id && typeof data.trip_id === "string") {
+    return data.trip_id;
+  }
+
+  return null;
+}
+
+export function addPushTokenRefreshListener(
+  listener: (token: string) => void,
+): () => void {
+  const subscription = Notifications.addPushTokenListener((tokenData) => {
+    listener(tokenData.data);
+  });
+
+  return () => subscription.remove();
 }
 
 export function clearNotificationListeners(

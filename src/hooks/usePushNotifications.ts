@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import {
+  addPushTokenRefreshListener,
   clearNotificationListeners,
   configureNotificationChannels,
+  getPendingNotificationResponseTripId,
   registerForPushNotifications,
   sendPushTokenToBackend,
   setupNotificationListeners,
@@ -72,6 +74,27 @@ export function usePushNotifications({
       listenersRef.current.foregroundSubscription = null;
     };
   }, [enabled, registerToken]);
+
+  useEffect(() => {
+    if (!enabled || !accessToken) return;
+
+    getPendingNotificationResponseTripId().then((tripId) => {
+      if (tripId) {
+        onTripRef.current?.(tripId);
+      }
+    });
+
+    const removeTokenRefreshListener = addPushTokenRefreshListener(
+      async (refreshedToken) => {
+        setExpoPushToken(refreshedToken);
+        await sendPushTokenToBackend(refreshedToken, accessToken);
+      },
+    );
+
+    return () => {
+      removeTokenRefreshListener();
+    };
+  }, [enabled, accessToken]);
 
   useEffect(() => {
     if (!enabled || !accessToken) return;
