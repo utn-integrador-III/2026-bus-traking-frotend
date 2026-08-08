@@ -5,15 +5,61 @@ import { env } from "../config/env";
 
 export const GEOFENCE_CHANNEL_ID = "geofence-alerts";
 export const GENERAL_CHANNEL_ID = "general";
+export const GEOFENCE_ALERT_TYPE = "geofence_alert";
+export const LOCAL_SOURCE = "local";
+export const GEOFENCE_DEDUPE_WINDOW_MS = 10_000;
+
+const recentGeofenceAlerts = new Map<string, number>();
+
+export function dedupeKey(tripId: string | null, stopId?: string | null): string {
+  return `${tripId || "unknown"}:${stopId || "unknown"}`;
+}
+
+export function isDuplicateGeofenceAlert(
+  tripId: string | null,
+  stopId?: string | null,
+): boolean {
+  const key = dedupeKey(tripId, stopId);
+  const now = Date.now();
+  const lastSeen = recentGeofenceAlerts.get(key);
+
+  if (lastSeen !== undefined && now - lastSeen < GEOFENCE_DEDUPE_WINDOW_MS) {
+    return true;
+  }
+
+  recentGeofenceAlerts.set(key, now);
+  return false;
+}
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data;
+
+    if (data?.type === GEOFENCE_ALERT_TYPE && data?.source !== LOCAL_SOURCE) {
+      if (
+        isDuplicateGeofenceAlert(
+          typeof data?.trip_id === "string" ? data.trip_id : null,
+          typeof data?.stop_id === "string" ? data.stop_id : null,
+        )
+      ) {
+        return {
+          shouldShowAlert: false,
+          shouldShowBanner: false,
+          shouldShowList: false,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        };
+      }
+    }
+
+    return {
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 function readPublicEnv(key: string): string | undefined {
@@ -82,12 +128,18 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
   const projectId = readPublicEnv("EXPO_PUBLIC_EAS_PROJECT_ID");
 
+  if (!projectId) {
+    console.warn("Push token registration skipped: EXPO_PUBLIC_EAS_PROJECT_ID is missing");
+    return null;
+  }
+
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId || undefined,
+      projectId,
     });
     return tokenData.data;
-  } catch {
+  } catch (error) {
+    console.warn("Push token registration failed", error);
     return null;
   }
 }
@@ -95,11 +147,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function sendPushTokenToBackend(
   token: string,
   accessToken: string,
-): Promise<void> {
+): Promise<boolean> {
   const url = buildApiUrl("passenger/push-token");
 
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -108,8 +160,18 @@ export async function sendPushTokenToBackend(
       },
       body: JSON.stringify({ expo_push_token: token }),
     });
-  } catch {
-    // Non-critical: will retry on next app foreground
+
+    if (!response.ok) {
+      console.warn(
+        `Push token registration failed: HTTP ${response.status} from ${url}`,
+      );
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn("Push token registration failed", error);
+    return false;
   }
 }
 
@@ -120,19 +182,13 @@ export function setupNotificationListeners(): {
   const foregroundSubscription = Notifications.addNotificationReceivedListener(
     (notification) => {
       const data = notification.request.content.data;
-      if (data?.type === "geofence_alert") {
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: notification.request.content.title || "Bus cerca de tu parada",
-            body:
-              notification.request.content.body ||
-              "El bus esta llegando. Preparate para abordar.",
-            data,
-            sound: true,
-          },
-          trigger: null,
-        });
-      }
+      if (data?.type !== GEOFENCE_ALERT_TYPE) return;
+      if (data?.source === LOCAL_SOURCE) return;
+
+      isDuplicateGeofenceAlert(
+        typeof data?.trip_id === "string" ? data.trip_id : null,
+        typeof data?.stop_id === "string" ? data.stop_id : null,
+      );
     },
   );
 

@@ -14,9 +14,12 @@ interface UsePushNotificationsOptions {
   onNotificationTripId?: (tripId: string) => void;
 }
 
+export type PushTokenRegistrationState = "idle" | "registered" | "failed";
+
 interface UsePushNotificationsResult {
   expoPushToken: string | null;
   permissionGranted: boolean;
+  tokenRegistrationState: PushTokenRegistrationState;
 }
 
 export function usePushNotifications({
@@ -26,6 +29,8 @@ export function usePushNotifications({
 }: UsePushNotificationsOptions): UsePushNotificationsResult {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [tokenRegistrationState, setTokenRegistrationState] =
+    useState<PushTokenRegistrationState>("idle");
   const listenersRef = useRef<{
     foregroundSubscription: ReturnType<typeof setupNotificationListeners> | null;
   }>({ foregroundSubscription: null });
@@ -41,7 +46,10 @@ export function usePushNotifications({
     if (token) {
       setExpoPushToken(token);
       setPermissionGranted(true);
-      await sendPushTokenToBackend(token, accessToken);
+      const registered = await sendPushTokenToBackend(token, accessToken);
+      setTokenRegistrationState(registered ? "registered" : "failed");
+    } else {
+      setTokenRegistrationState("failed");
     }
   }, [enabled, accessToken]);
 
@@ -87,5 +95,5 @@ export function usePushNotifications({
     };
   }, [enabled, accessToken, registerToken]);
 
-  return { expoPushToken, permissionGranted };
+  return { expoPushToken, permissionGranted, tokenRegistrationState };
 }
