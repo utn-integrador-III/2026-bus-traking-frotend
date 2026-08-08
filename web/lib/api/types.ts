@@ -56,6 +56,28 @@ export type AdminTrip = {
   ended_at: string | null;
 };
 
+export type AdminBus = {
+  id: string;
+  plate_number: string;
+  capacity: number;
+  status: string;
+  created_at: string;
+};
+
+export type IncidentModerationStatus = "pending" | "validated" | "dismissed";
+
+export type AdminIncident = {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  type: string;
+  description: string | null;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  moderation_status: IncidentModerationStatus;
+};
+
 export type SessionUser = {
   id: string;
   email: string;

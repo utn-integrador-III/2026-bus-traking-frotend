@@ -1,7 +1,14 @@
 import "server-only";
 import { apiFetch, ApiError, ApiUnreachableError } from "./client";
 import { readSession } from "@/lib/auth/session";
-import type { AdminDriver, AdminRoute, AdminTrip } from "./types";
+import type {
+  AdminBus,
+  AdminDriver,
+  AdminIncident,
+  AdminRoute,
+  AdminTrip,
+  IncidentModerationStatus,
+} from "./types";
 
 export type LoadResult<T> =
   | { ok: true; data: T }
@@ -68,4 +75,29 @@ export function updateRoute(id: string, input: RouteInput) {
 
 export function deactivateDriver(id: string) {
   return call<AdminDriver>(`/admin/drivers/${id}`, { method: "DELETE" });
+}
+
+export function getBuses() {
+  return call<AdminBus[]>("/admin/buses");
+}
+
+export function getIncidents(status?: IncidentModerationStatus) {
+  const query = status ? `?status=${status}` : "";
+  return call<AdminIncident[]>(`/admin/incidents${query}`);
+}
+
+export function moderateIncident(id: string, moderationStatus: IncidentModerationStatus) {
+  return call<AdminIncident>(`/admin/incidents/${id}`, {
+    method: "PUT",
+    body: { moderation_status: moderationStatus },
+  });
+}
+
+export function createTrip(input: {
+  route_id: string;
+  bus_id: string;
+  driver_id: string;
+  departure_time: string;
+}) {
+  return call<{ id: string }>("/admin/trips", { method: "POST", body: input });
 }
