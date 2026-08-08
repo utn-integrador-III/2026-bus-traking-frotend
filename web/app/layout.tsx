@@ -9,8 +9,11 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "BusTrack",
-  description: "Rastreo de buses en tiempo real",
+  title: {
+    default: "BusTrack Admin",
+    template: "%s · BusTrack Admin",
+  },
+  description: "Consola de administración de BusTrack",
 };
 
 export default function RootLayout({
