@@ -134,7 +134,7 @@ function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
 
 function buildStatusLabel(status: TripStatus): string {
   if (status === "Delayed") return "Delayed";
-  if (status === "In Progress") return "In Progress";
+  if (status === "In_Progress") return "In Progress";
   if (status === "Stopped") return "Stopped";
   if (status === "Scheduled" || status === "Pending") return "Scheduled";
   return String(status);
@@ -170,7 +170,6 @@ export default function PassengerRouteTrackingScreen({
   const [hasBoarded, setHasBoarded] = useState(false);
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
-  const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
 
   const animatedCoordinate = useRef(
     new AnimatedRegion({
@@ -244,12 +243,7 @@ export default function PassengerRouteTrackingScreen({
     selectedStopIdxRef.current = stop.index;
     wasInsideBoardingZone.current = false;
     missedAlertShown.current = false;
-    try {
-      const result = await watchStop(tripId, `stop-${stop.index}`, accessToken);
-      setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${stop.index}`);
-    }
+    await watchStop(tripId, `stop-${stop.index}`, accessToken).catch(() => {});
   }
 
   function triggerMissedBusAlert() {
@@ -419,11 +413,6 @@ export default function PassengerRouteTrackingScreen({
     };
   }, [tripId]);
 
-  useEffect(() => {
-    if (!selectedStopIdx) return;
-    watchStop(tripId, `stop-${selectedStopIdx}`, accessToken).catch(() => {});
-  }, []);
-
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -508,7 +497,7 @@ export default function PassengerRouteTrackingScreen({
               styles.statusBadge,
               currentStatus === "Delayed"
                 ? styles.delayedBadge
-                : currentStatus === "In Progress"
+                : currentStatus === "In_Progress"
                   ? styles.progressBadge
                   : styles.scheduledBadge,
             ]}

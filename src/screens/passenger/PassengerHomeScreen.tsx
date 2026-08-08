@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import MapView, { AnimatedRegion, LatLng, Marker, Polyline } from "react-native-maps";
+import * as Notifications from "expo-notifications";
 import {
   AuthUser,
   getPassengerHomeTripsPreview,
@@ -341,10 +342,15 @@ export default function PassengerHomeScreen({
       .channel(`home:passenger:${user.id}:alerts`)
       .on("broadcast", { event: "bus_approaching" }, (payload: any) => {
         const data = payload?.payload || payload;
-        Alert.alert(
-          "Bus acercándose",
-          `El bus está a menos de 500m de tu parada. Preparate para abordar.`,
-        );
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: "Bus acercandose",
+            body: "El bus esta a menos de 500m de tu parada. Preparate para abordar.",
+            data: { trip_id: data?.trip_id || selectedTripId, type: "geofence_alert" },
+            sound: true,
+          },
+          trigger: null,
+        });
       })
       .subscribe();
     return () => {

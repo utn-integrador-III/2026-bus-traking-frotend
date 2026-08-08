@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { stopDriverTracking } from "../services/driverLocationService";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
 import DriverScannerScreen from "../screens/driver/DriverScannerScreen";
 import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
@@ -54,6 +55,23 @@ export default function AppNavigator() {
       isMounted = false;
     };
   }, []);
+
+  const isPassenger = session?.user.role === "Passenger";
+
+  const handleNotificationTripId = useCallback(
+    (tripId: string) => {
+      setSelectedTripId(tripId);
+      setGeneratedTicket(null);
+      setCurrentScreen("passenger-tracking");
+    },
+    [],
+  );
+
+  usePushNotifications({
+    accessToken: session?.access_token || "",
+    enabled: isPassenger,
+    onNotificationTripId: handleNotificationTripId,
+  });
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
@@ -180,7 +198,7 @@ export default function AppNavigator() {
       <PassengerPaymentScreen
         tripId={selectedTripId}
         accessToken={session.access_token}
-        isSeniorPassenger={false}
+        isSeniorPassenger={!!session.user.is_senior}
         onBack={() => setCurrentScreen("passenger-tracking")}
         onPaymentSuccess={handlePaymentSuccess}
       />
