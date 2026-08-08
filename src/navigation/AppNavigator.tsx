@@ -163,7 +163,7 @@ export default function AppNavigator() {
           </Pressable>
         </View>
 
-        <RegisterPassengerScreen />
+        <RegisterPassengerScreen onRegistered={() => setCurrentScreen("login")} />
       </View>
     );
   }
