@@ -20,9 +20,11 @@ import {
   PassengerTripTrackingData,
   TripStatus,
   watchStop,
+  getMapIncidents,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
 import { BOARDING_RADIUS_METERS } from "../../config/constants";
+import type { PassengerIncident } from "../../types/incident.types";
 
 const ETA_REFRESH_INTERVAL_MS = 20000;
 
@@ -31,6 +33,7 @@ interface PassengerRouteTrackingScreenProps {
   accessToken: string;
   onBack: () => void;
   onCheckout: () => void;
+  onOpenIncidentReport?: () => void;
 }
 
 function haversineMeters(a: LatLng, b: LatLng): number {
@@ -134,7 +137,7 @@ function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
 
 function buildStatusLabel(status: TripStatus): string {
   if (status === "Delayed") return "Delayed";
-  if (status === "In Progress") return "In Progress";
+  if (status === "In_Progress") return "In Progress";
   if (status === "Stopped") return "Stopped";
   if (status === "Scheduled" || status === "Pending") return "Scheduled";
   return String(status);
@@ -162,6 +165,7 @@ export default function PassengerRouteTrackingScreen({
   accessToken,
   onBack,
   onCheckout,
+  onOpenIncidentReport,
 }: PassengerRouteTrackingScreenProps) {
   const [tripData, setTripData] = useState<PassengerTripTrackingData | null>(null);
   const [liveLocation, setLiveLocation] = useState<LiveBusLocation | null>(null);
@@ -170,7 +174,7 @@ export default function PassengerRouteTrackingScreen({
   const [hasBoarded, setHasBoarded] = useState(false);
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
-  const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
+  const [communityIncidents, setCommunityIncidents] = useState<PassengerIncident[]>([]);
 
   const animatedCoordinate = useRef(
     new AnimatedRegion({
@@ -244,12 +248,7 @@ export default function PassengerRouteTrackingScreen({
     selectedStopIdxRef.current = stop.index;
     wasInsideBoardingZone.current = false;
     missedAlertShown.current = false;
-    try {
-      const result = await watchStop(tripId, `stop-${stop.index}`, accessToken);
-      setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${stop.index}`);
-    }
+    await watchStop(tripId, `stop-${stop.index}`, accessToken).catch(() => {});
   }
 
   function triggerMissedBusAlert() {
@@ -296,8 +295,10 @@ export default function PassengerRouteTrackingScreen({
   }
 
   function evaluateBoardingGeofence(busPoint: LatLng) {
-    if (!currentStop || hasBoardedRef.current) return;
-    const distance = haversineMeters(busPoint, currentStop.coordinate);
+    const stops = stopPointsRef.current;
+    const stop = stops[selectedStopIdxRef.current] || stops[0] || null;
+    if (!stop || hasBoardedRef.current) return;
+    const distance = haversineMeters(busPoint, stop.coordinate);
     const isInside = distance <= BOARDING_RADIUS_METERS;
     if (isInside) {
       wasInsideBoardingZone.current = true;
@@ -322,8 +323,9 @@ export default function PassengerRouteTrackingScreen({
   }
 
   async function refreshEta(busPoint: LatLng) {
+    const stops = stopPointsRef.current;
     const destination =
-      stopPoints.length > 0 ? stopPoints[stopPoints.length - 1].coordinate : null;
+      stops.length > 0 ? stops[stops.length - 1].coordinate : null;
     if (!destination) return;
     const now = Date.now();
     if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) return;
@@ -420,9 +422,32 @@ export default function PassengerRouteTrackingScreen({
   }, [tripId]);
 
   useEffect(() => {
-    if (!selectedStopIdx) return;
-    watchStop(tripId, `stop-${selectedStopIdx}`, accessToken).catch(() => {});
-  }, []);
+    if (!tripId) return;
+
+    let cancelled = false;
+
+    async function loadIncidents() {
+      try {
+        const incidents = await getMapIncidents(tripId);
+        if (!cancelled) {
+          setCommunityIncidents(incidents);
+        }
+      } catch {
+        if (!cancelled) {
+          setCommunityIncidents([]);
+        }
+      }
+    }
+
+    loadIncidents();
+
+    const interval = setInterval(loadIncidents, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [tripId]);
 
   if (isLoading) {
     return (
@@ -488,6 +513,22 @@ export default function PassengerRouteTrackingScreen({
             <Text style={styles.busMarkerText}>{tripData.code}</Text>
           </View>
         </Marker.Animated>
+
+        {communityIncidents.map((incident) => (
+          <Marker
+            key={incident.id}
+            coordinate={{
+              latitude: incident.latitude,
+              longitude: incident.longitude,
+            }}
+            title={incident.type}
+            description={incident.description || ""}
+          >
+            <View style={styles.incidentMarker}>
+              <Text style={styles.incidentMarkerText}>!</Text>
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
       <View style={styles.topBar}>
@@ -508,7 +549,7 @@ export default function PassengerRouteTrackingScreen({
               styles.statusBadge,
               currentStatus === "Delayed"
                 ? styles.delayedBadge
-                : currentStatus === "In Progress"
+                : currentStatus === "In_Progress"
                   ? styles.progressBadge
                   : styles.scheduledBadge,
             ]}
@@ -583,6 +624,17 @@ export default function PassengerRouteTrackingScreen({
             <Text style={styles.primaryButtonText}>Comprar boleto</Text>
           </Pressable>
         </View>
+
+        {onOpenIncidentReport && (
+          <Pressable
+            style={styles.incidentReportBtn}
+            onPress={onOpenIncidentReport}
+          >
+            <Text style={styles.incidentReportBtnText}>
+              Reportar incidente en la ruta
+            </Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={[styles.confirmButton, hasBoarded && styles.disabledButton]}
@@ -792,4 +844,34 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#0F2141", fontWeight: "900" },
   disabledButton: { backgroundColor: "#E7F7EE" },
   boardedNote: { color: "#087D3B", fontWeight: "900", marginTop: 10 },
+  incidentMarker: {
+    backgroundColor: "#B4241C",
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  incidentMarkerText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  incidentReportBtn: {
+    backgroundColor: "#FCE9E7",
+    borderRadius: 18,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: "#B4241C",
+  },
+  incidentReportBtnText: {
+    color: "#B4241C",
+    fontWeight: "900",
+    fontSize: 14,
+  },
 });
