@@ -25,6 +25,7 @@ export interface Passenger {
   is_senior?: boolean;
   senior_status?: SeniorStatus;
   birth_date?: string | null;
+  expo_push_token?: string | null;
 }
 
 export interface SeniorVerificationRequest {

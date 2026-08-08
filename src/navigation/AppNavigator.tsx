@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import LoginScreen from "../auth/LoginScreen";
 import RegisterPassengerScreen from "../auth/RegisterPassengerScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import DriverHomeScreen from "../screens/driver/DriverHomeScreen";
 import DriverScannerScreen from "../screens/driver/DriverScannerScreen";
 import PassengerBoardingPassScreen from "../screens/passenger/PassengerBoardingPassScreen";
@@ -29,6 +30,23 @@ export default function AppNavigator() {
   const [session, setSession] = useState<LoginResponse | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
+
+  const isPassenger = session?.user.role === "Passenger";
+
+  const handleNotificationTripId = useCallback(
+    (tripId: string) => {
+      setSelectedTripId(tripId);
+      setGeneratedTicket(null);
+      setCurrentScreen("passenger-tracking");
+    },
+    [],
+  );
+
+  usePushNotifications({
+    accessToken: session?.access_token || "",
+    enabled: isPassenger,
+    onNotificationTripId: handleNotificationTripId,
+  });
 
   function handleLoginSuccess(nextSession: LoginResponse) {
     setSession(nextSession);
