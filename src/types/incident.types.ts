@@ -6,15 +6,10 @@ export interface PassengerIncidentDraft {
   longitude: number;
 }
 
-export interface PassengerIncident {
+export interface PassengerIncident extends PassengerIncidentDraft {
   id: string;
-  trip_id: string;
-  user_id: string;
-  type: string;
-  description: string | null;
-  latitude: number;
-  longitude: number;
   timestamp: string;
+  user_id: string;
   moderation_status: string;
 }
 
@@ -34,3 +29,31 @@ export const INCIDENT_TYPES = [
 ] as const;
 
 export type IncidentType = (typeof INCIDENT_TYPES)[number];
+
+export interface OfflineIncidentQueueItem {
+  id: number;
+  userId: string;
+  payload: PassengerIncidentDraft;
+  createdAt: string;
+  attemptCount: number;
+  maxAttempts: number;
+  lastAttemptAt: string | null;
+  nextRetryAt: string | null;
+  lastError: string | null;
+}
+
+export interface OfflineIncidentSyncSummary {
+  syncedIds: number[];
+  failedIds: number[];
+  pendingCount: number;
+}
+
+export type PassengerIncidentSubmission =
+  | {
+      status: "synced";
+      queueId: number;
+    }
+  | {
+      status: "queued";
+      queueId: number;
+    };
