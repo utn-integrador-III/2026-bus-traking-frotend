@@ -3,14 +3,21 @@
 import { useState } from "react";
 import { Icon } from "@/components/icon";
 import { Sidebar } from "@/components/admin/sidebar";
+import type { SessionUser } from "@/lib/api/types";
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({
+  user,
+  children,
+}: {
+  user: SessionUser;
+  children: React.ReactNode;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-bg">
       <aside className="sticky top-0 hidden h-screen lg:block">
-        <Sidebar />
+        <Sidebar user={user} />
       </aside>
 
       {mobileOpen ? (
@@ -22,7 +29,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             className="absolute inset-0 bg-brand/50"
           />
           <div className="absolute left-0 top-0 h-full shadow-floating">
-            <Sidebar onNavigate={() => setMobileOpen(false)} />
+            <Sidebar user={user} onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
       ) : null}
