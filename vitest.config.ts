@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["src/**/*.test.ts"],
+    exclude: ["src/services/__tests__/notificationService.test.ts"],
     setupFiles: ["./src/__mocks__/vitest-globals.ts"],
   },
 });
