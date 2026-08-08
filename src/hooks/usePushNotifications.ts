@@ -58,12 +58,10 @@ export function usePushNotifications({
 
     registerToken();
 
-    (globalThis as any).__onNotificationTap = (tripId: string) => {
-      onTripRef.current?.(tripId);
-    };
-
     const { foregroundSubscription, responseSubscription } =
-      setupNotificationListeners();
+      setupNotificationListeners((tripId) => {
+        onTripRef.current?.(tripId);
+      });
     listenersRef.current.foregroundSubscription = {
       foregroundSubscription,
       responseSubscription,
@@ -72,7 +70,6 @@ export function usePushNotifications({
     return () => {
       clearNotificationListeners(listenersRef.current.foregroundSubscription);
       listenersRef.current.foregroundSubscription = null;
-      delete (globalThis as any).__onNotificationTap;
     };
   }, [enabled, registerToken]);
 
@@ -80,7 +77,7 @@ export function usePushNotifications({
     if (!enabled || !accessToken) return;
 
     const handleAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === "active") {
+      if (nextState === "active" && !expoPushToken) {
         registerToken();
       }
     };
@@ -93,7 +90,7 @@ export function usePushNotifications({
     return () => {
       subscription.remove();
     };
-  }, [enabled, accessToken, registerToken]);
+  }, [enabled, accessToken, registerToken, expoPushToken]);
 
   return { expoPushToken, permissionGranted, tokenRegistrationState };
 }

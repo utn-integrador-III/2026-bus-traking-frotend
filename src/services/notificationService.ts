@@ -175,7 +175,9 @@ export async function sendPushTokenToBackend(
   }
 }
 
-export function setupNotificationListeners(): {
+export function setupNotificationListeners(
+  onTripId?: (tripId: string) => void,
+): {
   foregroundSubscription: Notifications.Subscription;
   responseSubscription: Notifications.Subscription;
 } {
@@ -195,8 +197,8 @@ export function setupNotificationListeners(): {
   const responseSubscription =
     Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
-      if (data?.trip_id && typeof (globalThis as any).__onNotificationTap === "function") {
-        (globalThis as any).__onNotificationTap(data.trip_id as string);
+      if (data?.trip_id && typeof data.trip_id === "string" && onTripId) {
+        onTripId(data.trip_id);
       }
     });
 
