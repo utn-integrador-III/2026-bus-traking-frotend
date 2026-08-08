@@ -1,22 +1,36 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
+import { IncidentRow } from "@/components/admin/incident-row";
 import { LoadError } from "@/components/admin/load-error";
-import { IncidentCard } from "@/components/admin/incident-card";
-import { IncidentTabs } from "@/components/admin/incident-tabs";
-import { getIncidents } from "@/lib/api/admin";
-import type { IncidentModerationStatus } from "@/lib/api/types";
+import { getIncidents, getRoutes, getTrips } from "@/lib/api/admin";
+import type { IncidentStatus } from "@/lib/api/types";
 
 export const metadata: Metadata = {
   title: "Alertas",
 };
 
-export const dynamic = "force-dynamic";
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "Todas" },
+  { value: "Pending", label: "Pendientes" },
+  { value: "Validated", label: "Validadas" },
+  { value: "Archived", label: "Archivadas" },
+  { value: "Dismissed", label: "Descartadas" },
+];
 
+<<<<<<< HEAD
 const TABS: { value: "all" | IncidentModerationStatus; label: string }[] = [
   { value: "all", label: "Todas" },
   { value: "Pending", label: "Pendientes" },
   { value: "Validated", label: "Validadas" },
   { value: "Dismissed", label: "Descartadas" },
+=======
+const VALID_STATUSES: IncidentStatus[] = [
+  "Pending",
+  "Validated",
+  "Archived",
+  "Dismissed",
+>>>>>>> origin/dev
 ];
 
 export default async function IncidentsPage({
@@ -25,23 +39,50 @@ export default async function IncidentsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
+<<<<<<< HEAD
   const active =
     status === "Pending" || status === "Validated" || status === "Dismissed"
       ? status
       : "all";
+=======
+  const statusFilter =
+    status && VALID_STATUSES.includes(status as IncidentStatus)
+      ? (status as IncidentStatus)
+      : undefined;
+>>>>>>> origin/dev
 
-  const result = await getIncidents(active === "all" ? undefined : active);
+  const [incidentsResult, tripsResult, routesResult] = await Promise.all([
+    getIncidents(statusFilter),
+    getTrips(),
+    getRoutes(),
+  ]);
 
-  if (!result.ok) {
+  if (!incidentsResult.ok) {
     return (
       <>
-        <PageHeader title="Alertas" subtitle="Moderación de reportes de la comunidad" />
-        <LoadError failure={result} />
+        <PageHeader title="Alertas" subtitle="No se pudieron cargar los reportes" />
+        <LoadError failure={incidentsResult} />
       </>
     );
   }
 
-  const incidents = result.data;
+  const incidents = incidentsResult.data;
+  const trips = tripsResult.ok ? tripsResult.data : [];
+  const routes = routesResult.ok ? routesResult.data : [];
+
+  const routeName = new Map(routes.map((route) => [route.id, route.name]));
+  const tripLabel = new Map(
+    trips.map((trip) => [
+      trip.id,
+      `${routeName.get(trip.route_id) ?? "Ruta desconocida"} · ${new Date(
+        trip.departure_time,
+      ).toLocaleString("es-CR")}`,
+    ]),
+  );
+
+  const pendingCount = incidents.filter(
+    (incident) => incident.status === "Pending",
+  ).length;
 
   return (
     <>
@@ -49,24 +90,49 @@ export default async function IncidentsPage({
         title="Alertas"
         subtitle={
           incidents.length === 0
-            ? "Sin reportes"
-            : `${incidents.length} reporte${incidents.length === 1 ? "" : "s"}`
+            ? "Sin reportes de la comunidad"
+            : `${incidents.length} reportes · ${pendingCount} pendientes de moderar`
         }
       />
 
-      <IncidentTabs tabs={TABS} active={active} />
+      <div className="mb-6 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((filter) => {
+          const active = statusFilter === filter.value || (!statusFilter && filter.value === "");
+          return (
+            <Link
+              key={filter.value}
+              href={filter.value ? `/incidents?status=${filter.value}` : "/incidents"}
+              aria-pressed={active}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                active
+                  ? "bg-brand text-on-dark"
+                  : "border border-border-subtle bg-surface text-text-secondary hover:text-brand"
+              }`}
+            >
+              {filter.label}
+            </Link>
+          );
+        })}
+      </div>
 
       {incidents.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
           <p className="text-md font-bold text-brand">No hay reportes</p>
           <p className="mt-1 text-sm text-text-secondary">
-            La API no devolvió ningún reporte para este filtro.
+            La API no devolvió reportes{statusFilter ? " con ese estado" : ""}.
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {incidents.map((incident) => (
-            <IncidentCard key={incident.id} incident={incident} />
+          {[...incidents].sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          ).map((incident) => (
+            <IncidentRow
+              key={incident.id}
+              incident={incident}
+              tripName={tripLabel.get(incident.trip_id) ?? "Viaje desconocido"}
+            />
           ))}
         </div>
       )}

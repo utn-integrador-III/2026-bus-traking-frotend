@@ -2,21 +2,28 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { Badge } from "@/components/admin/badge";
-import { RouteMap } from "@/components/admin/route-map";
+import { LiveTelemetryMap } from "@/components/admin/live-telemetry-map";
 import { LoadError } from "@/components/admin/load-error";
 import { TripList } from "@/components/admin/trip-list";
-import { getRoutes, getDrivers, getTrips } from "@/lib/api/admin";
+import {
+  getRoutes,
+  getDrivers,
+  getTrips,
+  getCurrentTelemetry,
+} from "@/lib/api/admin";
 
 export const metadata: Metadata = {
   title: "Panel de control",
 };
 
 export default async function DashboardPage() {
-  const [routesResult, tripsResult, driversResult] = await Promise.all([
-    getRoutes(),
-    getTrips(),
-    getDrivers(),
-  ]);
+  const [routesResult, tripsResult, driversResult, telemetryResult] =
+    await Promise.all([
+      getRoutes(),
+      getTrips(),
+      getDrivers(),
+      getCurrentTelemetry(),
+    ]);
 
   if (!routesResult.ok) {
     return (
@@ -30,9 +37,12 @@ export default async function DashboardPage() {
   const routes = routesResult.data;
   const trips = tripsResult.ok ? tripsResult.data : [];
   const drivers = driversResult.ok ? driversResult.data : [];
+  const initialTelemetry = telemetryResult.ok ? telemetryResult.data : [];
+  const telemetryUnavailable = !telemetryResult.ok;
+  const activeTrips = trips.filter((trip) => trip.status === "In_Progress");
 
   const activeRoutes = routes.filter((route) => route.is_active).length;
-  const inProgress = trips.filter((trip) => trip.status === "In_Progress").length;
+  const inProgress = activeTrips.length;
   const upcoming = trips.filter(
     (trip) => trip.status === "Scheduled" || trip.status === "Pending",
   ).length;
@@ -75,14 +85,27 @@ export default async function DashboardPage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-card-soft lg:col-span-2">
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-3xl font-extrabold text-brand">Trazado de rutas</h2>
+            <h2 className="text-3xl font-extrabold text-brand">
+              Telemetría en vivo
+            </h2>
             <Badge tone="neutral">{routes.length} rutas</Badge>
           </div>
           <p className="mb-4 text-xs text-text-secondary">
-            Geometría real de cada ruta sobre OpenStreetMap. La posición en vivo de
-            los buses llega por Supabase Realtime y todavía no está conectada.
+            Posición de los buses por Supabase Realtime. Los marcadores se
+            actualizan en vivo mientras el viaje está activo.
           </p>
-          <RouteMap routes={routes} />
+          {telemetryUnavailable ? (
+            <p className="mb-4 rounded-xl bg-warning-bg px-4 py-3 text-xs font-bold text-warning">
+              No se pudo obtener el estado inicial de la flota
+              (GET /api/admin/telemetry/current). El mapa esperará la primera
+              publicación Realtime de cada viaje activo.
+            </p>
+          ) : null}
+          <LiveTelemetryMap
+            routes={routes}
+            activeTrips={activeTrips}
+            initialTelemetry={initialTelemetry}
+          />
         </section>
 
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-card-soft">
