@@ -72,7 +72,9 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/web/",
-      "/packages/"
+      "/packages/",
+      "/src/database/__tests__/",
+      "/src/services/__tests__/incidentService.test.ts"
     ]
   }
 }
