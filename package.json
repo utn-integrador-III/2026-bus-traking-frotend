@@ -15,6 +15,7 @@
     "mobile:typecheck": "tsc -p tsconfig.mobile.json --noEmit",
     "mobile:lint": "eslint src --config eslint.config.mobile.mjs",
     "mobile:test": "jest",
+    "mobile:test:coverage": "jest --coverage",
     "mobile:strip:dry": "node tools/strip-comments.mjs --dry-run",
     "mobile:env:check": "node scripts/check-mobile-env.mjs",
     "prepare": "husky",
@@ -24,6 +25,8 @@
     "web:lint": "npm run lint -w web",
     "web:typecheck": "npm run typecheck -w web",
     "web:test": "npm run test -w web",
+    "web:test:unit": "npm run test:unit -w web",
+    "web:test:coverage": "npm run test:coverage -w web",
     "web:strip:dry": "npm run strip:dry -w web",
     "web:strip:apply": "npm run strip:apply -w web",
     "web:env:check": "npm run env:check -w web"
@@ -69,12 +72,19 @@
   },
   "jest": {
     "preset": "jest-expo",
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/web/",
-      "/packages/",
-      "/src/database/__tests__/",
-      "/src/services/__tests__/incidentService.test.ts"
-    ]
+    "testPathIgnorePatterns": ["/node_modules/", "/web/", "/packages/"],
+    "collectCoverageFrom": [
+      "App.tsx",
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/**/__tests__/**",
+      "!src/**/__mocks__/**",
+      "!src/types/**"
+    ],
+    "coverageDirectory": "coverage/mobile",
+    "coverageReporters": ["text", "lcov", "cobertura"],
+    "coverageThreshold": {
+      "global": { "branches": 80, "functions": 80, "lines": 80, "statements": 80 }
+    }
   }
 }
