@@ -5,6 +5,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./", import.meta.url)),
+      react: fileURLToPath(new URL("../node_modules/react", import.meta.url)),
+      "react-dom": fileURLToPath(
+        new URL("./node_modules/react-dom", import.meta.url),
+      ),
     },
   },
   test: {
@@ -12,6 +16,11 @@ export default defineConfig({
     globals: true,
     include: ["tests/unit/**/*.{test,spec}.{ts,tsx}"],
     setupFiles: ["./tests/unit/setup.ts"],
+    server: {
+      deps: {
+        inline: [/^react(?:\/|$)/, /^react-dom(?:\/|$)/, /^@testing-library\/react/],
+      },
+    },
     coverage: {
       provider: "v8",
       reportsDirectory: "coverage",
