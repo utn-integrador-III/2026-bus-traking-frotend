@@ -150,6 +150,7 @@ export function StopForm({
         <button
           type="submit"
           disabled={pending}
+          aria-label={stop ? "Guardar cambios" : "Crear parada"}
           className="flex h-11 items-center gap-2 rounded-xl bg-accent px-6 text-md font-extrabold text-brand transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name={stop ? "check" : "plus"} size={18} />

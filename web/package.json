@@ -13,8 +13,8 @@
     "strip:apply": "node tools/strip-comments.mjs",
     "env:check": "node scripts/check-env-drift.mjs",
     "test": "playwright test",
-    "test:unit": "node scripts/run-vitest.cjs run",
-    "test:coverage": "node scripts/run-vitest.cjs run --coverage",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:ui": "playwright test --ui"
   },
   "dependencies": {

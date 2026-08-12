@@ -203,9 +203,9 @@ describe("layouts and admin shell", () => {
     mocks.session.mockResolvedValue({ user: { id: "u1", name: "Admin", email: "a@test.com", role: "Admin" } });
   });
 
-  it("executes root and login layouts", () => {
+  it("executes root and login layouts", async () => {
     expect(RootLayout({ children: <span>root child</span> }).type).toBe("html");
-    expect(pageText(LoginLayout({ children: <span>login child</span> }))).resolves.toContain("login child");
+    await expect(pageText(LoginLayout({ children: <span>login child</span> }))).resolves.toContain("login child");
   });
 
   it("protects the admin layout", async () => {
