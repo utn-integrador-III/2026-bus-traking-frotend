@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
     "node_modules/**",
   ]),
@@ -41,6 +42,18 @@ const eslintConfig = defineConfig([
           destructuredArrayIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    files: ["tests/unit/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    files: ["scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ]);

@@ -1,17 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-
 (globalThis as Record<string, unknown>).__DEV__ = true;
 
-const mockDbFunctions = vi.hoisted(() => {
-  const mockEnqueue = vi.fn();
-  const mockGetPending = vi.fn().mockResolvedValue([]);
-  const mockCountPending = vi.fn().mockResolvedValue(0);
-  const mockMarkRetry = vi.fn();
-  const mockDeleteIncident = vi.fn();
-  const mockMarkAttempt = vi.fn();
-  const mockCleanup = vi.fn();
-  const mockGetEarliest = vi.fn().mockResolvedValue(null);
-
+const mockDbFunctions = (() => {
+  const mockEnqueue = jest.fn();
+  const mockGetPending = jest.fn().mockResolvedValue([]);
+  const mockCountPending = jest.fn().mockResolvedValue(0);
+  const mockMarkRetry = jest.fn();
+  const mockDeleteIncident = jest.fn();
+  const mockMarkAttempt = jest.fn();
+  const mockCleanup = jest.fn();
+  const mockGetEarliest = jest.fn().mockResolvedValue(null);
   return {
     mockEnqueue,
     mockGetPending,
@@ -22,63 +19,52 @@ const mockDbFunctions = vi.hoisted(() => {
     mockCleanup,
     mockGetEarliest,
   };
-});
+})();
 
-const mockApiClient = vi.hoisted(() => {
-  const mockCreateIncident = vi.fn();
-  const MockApiClientError = class extends Error {
-    status: number;
-    code: string | undefined;
-    details: unknown;
-    constructor(status: number, message: string, code?: string, details?: unknown) {
-      super(message);
-      this.status = status;
-      this.code = code;
-      this.details = details;
-      this.name = "ApiClientError";
-    }
-  };
-  return { mockCreateIncident, MockApiClientError };
-});
+const mockApiClient = (() => {
+  const mockCreateIncident = jest.fn();
+  return { mockCreateIncident };
+})();
 
-const mockNetInfo = vi.hoisted(() => {
-  const mockFetch = vi.fn().mockResolvedValue({
+const mockNetInfo = (() => {
+  const mockFetch = jest.fn().mockResolvedValue({
     isConnected: true,
     isInternetReachable: true,
   });
   return { mockFetch };
-});
+})();
 
-vi.mock("expo", () => ({
-  requireNativeModule: vi.fn().mockReturnValue({}),
-  requireOptionalNativeModule: vi.fn().mockReturnValue(null),
+jest.mock("expo", () => ({
+  requireNativeModule: jest.fn().mockReturnValue({}),
+  requireOptionalNativeModule: jest.fn().mockReturnValue(null),
 }));
 
-vi.mock("expo-sqlite", () => ({
-  openDatabaseAsync: vi.fn().mockResolvedValue({
-    execAsync: vi.fn().mockResolvedValue(undefined),
-    runAsync: vi.fn().mockResolvedValue({ lastInsertRowId: 1 }),
-    getFirstAsync: vi.fn(),
-    getAllAsync: vi.fn().mockResolvedValue([]),
+jest.mock("expo-sqlite", () => ({
+  openDatabaseAsync: jest.fn().mockResolvedValue({
+    execAsync: jest.fn().mockResolvedValue(undefined),
+    runAsync: jest.fn().mockResolvedValue({ lastInsertRowId: 1 }),
+    getFirstAsync: jest.fn(),
+    getAllAsync: jest.fn().mockResolvedValue([]),
   }),
 }));
 
-vi.mock("react-native", () => ({
+jest.mock("react-native", () => ({
   Platform: { OS: "ios", select: (obj: Record<string, unknown>) => obj.ios },
   NativeModules: {},
   AppState: {
-    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
-    removeEventListener: vi.fn(),
+    addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+    removeEventListener: jest.fn(),
   },
 }));
 
-vi.mock("@react-native-community/netinfo", () => ({
+jest.mock("@react-native-community/netinfo", () => ({
+  __esModule: true,
   default: {
     fetch: (...args: unknown[]) => mockNetInfo.mockFetch(...args),
   },
 }));
 
-vi.mock("../../database/offlineIncidentQueue", () => ({
+jest.mock("../../database/offlineIncidentQueue", () => ({
   enqueueOfflineIncident: (...args: unknown[]) =>
     mockDbFunctions.mockEnqueue(...args),
   getPendingOfflineIncidents: (...args: unknown[]) =>
@@ -97,10 +83,21 @@ vi.mock("../../database/offlineIncidentQueue", () => ({
     mockDbFunctions.mockGetEarliest(...args),
 }));
 
-vi.mock("../apiClient", () => ({
+jest.mock("../apiClient", () => ({
   createPassengerIncident: (...args: unknown[]) =>
     mockApiClient.mockCreateIncident(...args),
-  ApiClientError: mockApiClient.MockApiClientError,
+  ApiClientError: class ApiClientError extends Error {
+    status: number;
+    code: string | undefined;
+    details: unknown;
+    constructor(status: number, message: string, code?: string, details?: unknown) {
+      super(message);
+      this.status = status;
+      this.code = code;
+      this.details = details;
+      this.name = "ApiClientError";
+    }
+  },
 }));
 
 import {
@@ -124,7 +121,7 @@ const userId = "user-1";
 const accessToken = "token-abc";
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  jest.clearAllMocks();
   mockNetInfo.mockFetch.mockResolvedValue({
     isConnected: true,
     isInternetReachable: true,

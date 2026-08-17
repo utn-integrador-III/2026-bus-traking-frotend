@@ -151,6 +151,7 @@ export function TripForm({
         <button
           type="submit"
           disabled={pending}
+          aria-label="Programar viaje"
           className="flex h-11 items-center gap-2 rounded-xl bg-accent px-6 text-md font-extrabold text-brand transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name="plus" size={18} />

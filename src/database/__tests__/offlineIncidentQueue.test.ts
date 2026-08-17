@@ -1,25 +1,23 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+const mockDb = {
+    execAsync: jest.fn().mockResolvedValue(undefined),
+    runAsync: jest.fn().mockResolvedValue({ lastInsertRowId: 1 }),
+    getFirstAsync: jest.fn(),
+    getAllAsync: jest.fn().mockResolvedValue([]),
+};
 
-const { mockDb } = vi.hoisted(() => ({
-  mockDb: {
-    execAsync: vi.fn().mockResolvedValue(undefined),
-    runAsync: vi.fn().mockResolvedValue({ lastInsertRowId: 1 }),
-    getFirstAsync: vi.fn(),
-    getAllAsync: vi.fn().mockResolvedValue([]),
-  },
-}));
-
-vi.mock("expo-sqlite", () => ({
-  openDatabaseAsync: vi.fn().mockResolvedValue(mockDb),
+jest.mock("expo-sqlite", () => ({
+  openDatabaseAsync: jest.fn().mockResolvedValue(mockDb),
 }));
 
 beforeEach(async () => {
-  vi.resetModules();
-  vi.clearAllMocks();
+  jest.resetModules();
+  jest.clearAllMocks();
 });
 
 async function importModule() {
-  return import("../offlineIncidentQueue");
+  return jest.requireActual<typeof import("../offlineIncidentQueue")>(
+    "../offlineIncidentQueue",
+  );
 }
 
 function setupDatabaseInit() {

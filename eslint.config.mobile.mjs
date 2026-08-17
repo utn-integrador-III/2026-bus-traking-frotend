@@ -34,6 +34,7 @@ const eslintConfig = defineConfig([
     files: ["src/**/__tests__/**/*.{ts,tsx}"],
     rules: {
       "local/no-comments": "off",
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ]);
