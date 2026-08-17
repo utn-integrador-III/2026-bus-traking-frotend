@@ -30,6 +30,10 @@ function toBackendSpeed(speedMetersPerSecond?: number | null): number | undefine
     return undefined;
   }
 
+  if (speedMetersPerSecond < 1) {
+    return 0;
+  }
+
   return Number((speedMetersPerSecond * 3.6).toFixed(2));
 }
 

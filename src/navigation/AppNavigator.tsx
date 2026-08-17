@@ -9,6 +9,7 @@ import PassengerHomeScreen from "../screens/passenger/PassengerHomeScreen";
 import PassengerMyTicketsScreen from "../screens/passenger/PassengerMyTicketsScreen";
 import PassengerPaymentScreen from "../screens/passenger/PassengerPaymentScreen";
 import PassengerRouteTrackingScreen from "../screens/passenger/PassengerRouteTrackingScreen";
+import PassengerIncidentScreen from "../screens/passenger/PassengerIncidentScreen";
 import { LoginResponse } from "../services/apiClient";
 import { Ticket } from "../services/ticketService";
 
@@ -20,6 +21,7 @@ type AppScreen =
   | "passenger-payment"
   | "passenger-my-tickets"
   | "passenger-boarding-pass"
+  | "passenger-incident"
   | "driver-home"
   | "driver-scanner"
   | "admin-dashboard";
@@ -100,6 +102,10 @@ export default function AppNavigator() {
     setCurrentScreen("driver-scanner");
   }
 
+  function handleOpenIncidentReport() {
+    setCurrentScreen("passenger-incident");
+  }
+
   if (currentScreen === "register") {
     return (
       <View style={styles.screen}>
@@ -135,6 +141,7 @@ export default function AppNavigator() {
         accessToken={session.access_token}
         onBack={handleBackFromTracking}
         onCheckout={handleCheckout}
+        onOpenIncidentReport={handleOpenIncidentReport}
       />
     );
   }
@@ -167,6 +174,17 @@ export default function AppNavigator() {
         ticket={generatedTicket}
         onBackHome={() => setCurrentScreen("passenger-home")}
         onBackToTrip={() => setCurrentScreen("passenger-tracking")}
+      />
+    );
+  }
+
+  if (currentScreen === "passenger-incident" && session && selectedTripId) {
+    return (
+      <PassengerIncidentScreen
+        tripId={selectedTripId}
+        accessToken={session.access_token}
+        onBack={() => setCurrentScreen("passenger-tracking")}
+        onSubmitted={() => setCurrentScreen("passenger-tracking")}
       />
     );
   }
