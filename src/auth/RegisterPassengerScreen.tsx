@@ -51,6 +51,11 @@ const initialForm: RegisterFormData = {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const birthDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const isGoogleSignInEnabled = process.env.EXPO_PUBLIC_ENABLE_GOOGLE_SIGN_IN === "true";
+
+type RegisterPassengerScreenProps = {
+  onRegistered?: () => void;
+};
 
 
 function formatDatePart(value: number) {
@@ -209,7 +214,7 @@ function AuthInput({
   );
 }
 
-export default function RegisterPassengerScreen() {
+export default function RegisterPassengerScreen({ onRegistered }: RegisterPassengerScreenProps) {
   const [form, setForm] = useState<RegisterFormData>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -412,32 +417,34 @@ export default function RegisterPassengerScreen() {
               icon="lock"
               label="Contrasena"
               onChangeText={(value) => updateField("password", value)}
-              placeholder="Password123"
+              placeholder="Minimo 8 caracteres"
               secureTextEntry
               textContentType="newPassword"
               value={form.password}
             />
 
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={isSubmitting || isTakingPhoto || isGoogleSubmitting}
-              onPress={handleGoogleSignIn}
-              style={({ pressed }) => [
-                styles.googleButton,
-                isSubmitting || isTakingPhoto || isGoogleSubmitting ? styles.googleButtonDisabled : null,
-                pressed && !isSubmitting && !isTakingPhoto && !isGoogleSubmitting ? styles.pressed : null,
-              ]}
-            >
-              {isGoogleSubmitting ? (
-                <ActivityIndicator color={palette.navy.DEFAULT} />
-              ) : (
-                <>
-                  <Feather color={palette.navy.DEFAULT} name="chrome" size={16} />
-                  <Text style={styles.googleButtonText}>Continuar con Google</Text>
-                </>
-              )}
-            </Pressable>
+            {isGoogleSignInEnabled ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSubmitting || isTakingPhoto || isGoogleSubmitting}
+                onPress={handleGoogleSignIn}
+                style={({ pressed }) => [
+                  styles.googleButton,
+                  isSubmitting || isTakingPhoto || isGoogleSubmitting ? styles.googleButtonDisabled : null,
+                  pressed && !isSubmitting && !isTakingPhoto && !isGoogleSubmitting ? styles.pressed : null,
+                ]}
+              >
+                {isGoogleSubmitting ? (
+                  <ActivityIndicator color={palette.navy.DEFAULT} />
+                ) : (
+                  <>
+                    <Feather color={palette.navy.DEFAULT} name="chrome" size={16} />
+                    <Text style={styles.googleButtonText}>Continuar con Google</Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
 
             <Pressable
               accessibilityRole="switch"
@@ -525,6 +532,17 @@ export default function RegisterPassengerScreen() {
 
             {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
             {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+
+            {successMessage && onRegistered ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onRegistered}
+                style={({ pressed }) => [styles.googleButton, pressed ? styles.pressed : null]}
+              >
+                <Feather color={palette.navy.DEFAULT} name="log-in" size={16} />
+                <Text style={styles.googleButtonText}>Ir al inicio de sesion</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable
               accessibilityRole="button"

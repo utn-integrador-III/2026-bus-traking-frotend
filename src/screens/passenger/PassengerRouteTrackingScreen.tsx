@@ -17,7 +17,9 @@ import MapView, {
 import {
   getPassengerTripTrackingData,
   getTripEtaMinutes,
+  getTripStops,
   PassengerTripTrackingData,
+  StopRaw,
   TripStatus,
   watchStop,
   getMapIncidents,
@@ -59,6 +61,7 @@ interface LiveBusLocation {
 }
 
 interface StopPoint {
+  id: string | null;
   coordinate: LatLng;
   index: number;
   label: string;
@@ -77,6 +80,7 @@ function buildStopPoints(coords: LatLng[]): StopPoint[] {
   if (coords.length === 0) return [];
   const stops: StopPoint[] = [];
   stops.push({
+    id: null,
     coordinate: coords[0],
     index: 0,
     label: "Abordaje",
@@ -88,6 +92,7 @@ function buildStopPoints(coords: LatLng[]): StopPoint[] {
     for (let i = step; i < coords.length - 1; i += step) {
       if (stops.length >= 6) break;
       stops.push({
+        id: null,
         coordinate: coords[i],
         index: i,
         label: `Parada ${stops.length}`,
@@ -98,6 +103,7 @@ function buildStopPoints(coords: LatLng[]): StopPoint[] {
   }
   if (coords.length > 1) {
     stops.push({
+      id: null,
       coordinate: coords[coords.length - 1],
       index: coords.length - 1,
       label: "Destino",
@@ -106,6 +112,19 @@ function buildStopPoints(coords: LatLng[]): StopPoint[] {
     });
   }
   return stops;
+}
+
+function buildStopPointsFromRouteStops(routeStops: StopRaw[]): StopPoint[] {
+  return [...routeStops]
+    .sort((a, b) => a.stop_order - b.stop_order)
+    .map((stop, position, all) => ({
+      id: stop.id,
+      coordinate: { latitude: stop.latitude, longitude: stop.longitude },
+      index: position,
+      label: stop.name,
+      isBoarding: position === 0,
+      isDestination: position === all.length - 1,
+    }));
 }
 
 function getInitialRegion(points: LatLng[]) {
@@ -137,7 +156,7 @@ function normalizeRealtimePayload(payload: any): LiveBusLocation | null {
 
 function buildStatusLabel(status: TripStatus): string {
   if (status === "Delayed") return "Delayed";
-  if (status === "In Progress") return "In Progress";
+  if (status === "In_Progress") return "In Progress";
   if (status === "Stopped") return "Stopped";
   if (status === "Scheduled" || status === "Pending") return "Scheduled";
   return String(status);
@@ -175,6 +194,8 @@ export default function PassengerRouteTrackingScreen({
   const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number>(0);
   const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
+  const [routeStops, setRouteStops] = useState<StopRaw[]>([]);
+  const [stopWatchError, setStopWatchError] = useState("");
   const [communityIncidents, setCommunityIncidents] = useState<PassengerIncident[]>([]);
 
   const animatedCoordinate = useRef(
@@ -197,7 +218,15 @@ export default function PassengerRouteTrackingScreen({
     return tripData ? geoJsonToLatLng(tripData) : [];
   }, [tripData]);
 
-  const stopPoints = useMemo(() => buildStopPoints(routePoints), [routePoints]);
+  const stopPoints = useMemo(
+    () =>
+      routeStops.length > 0
+        ? buildStopPointsFromRouteStops(routeStops)
+        : buildStopPoints(routePoints),
+    [routePoints, routeStops],
+  );
+
+  const areStopsApproximate = routeStops.length === 0;
 
   const stopPointCoords = useMemo(
     () => stopPoints.map((sp) => sp.coordinate),
@@ -249,11 +278,24 @@ export default function PassengerRouteTrackingScreen({
     selectedStopIdxRef.current = stop.index;
     wasInsideBoardingZone.current = false;
     missedAlertShown.current = false;
+    if (!stop.id) {
+      setWatchedStopId(null);
+      setStopWatchError(
+        "Esta parada es aproximada y no se puede registrar en el servidor.",
+      );
+      return;
+    }
     try {
-      const result = await watchStop(tripId, `stop-${stop.index}`, accessToken);
+      const result = await watchStop(tripId, stop.id, accessToken);
       setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${stop.index}`);
+      setStopWatchError("");
+    } catch (error) {
+      setWatchedStopId(null);
+      setStopWatchError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar la parada seleccionada.",
+      );
     }
   }
 
@@ -301,8 +343,10 @@ export default function PassengerRouteTrackingScreen({
   }
 
   function evaluateBoardingGeofence(busPoint: LatLng) {
-    if (!currentStop || hasBoardedRef.current) return;
-    const distance = haversineMeters(busPoint, currentStop.coordinate);
+    const stops = stopPointsRef.current;
+    const stop = stops[selectedStopIdxRef.current] || stops[0] || null;
+    if (!stop || hasBoardedRef.current) return;
+    const distance = haversineMeters(busPoint, stop.coordinate);
     const isInside = distance <= BOARDING_RADIUS_METERS;
     if (isInside) {
       wasInsideBoardingZone.current = true;
@@ -327,8 +371,9 @@ export default function PassengerRouteTrackingScreen({
   }
 
   async function refreshEta(busPoint: LatLng) {
+    const stops = stopPointsRef.current;
     const destination =
-      stopPoints.length > 0 ? stopPoints[stopPoints.length - 1].coordinate : null;
+      stops.length > 0 ? stops[stops.length - 1].coordinate : null;
     if (!destination) return;
     const now = Date.now();
     if (now - lastEtaAt.current < ETA_REFRESH_INTERVAL_MS) return;
@@ -398,6 +443,22 @@ export default function PassengerRouteTrackingScreen({
   }, [accessToken, animatedCoordinate, tripId]);
 
   useEffect(() => {
+    const routeId = tripData?.routeId;
+    if (!routeId) return;
+    let isMounted = true;
+    getTripStops(routeId, accessToken)
+      .then((stops) => {
+        if (isMounted) setRouteStops(stops || []);
+      })
+      .catch(() => {
+        if (isMounted) setRouteStops([]);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, tripData?.routeId]);
+
+  useEffect(() => {
     if (!tripId) return;
     const channel = supabase
       .channel(`trip:${tripId}:driver-location`)
@@ -425,9 +486,32 @@ export default function PassengerRouteTrackingScreen({
   }, [tripId]);
 
   useEffect(() => {
-    if (!selectedStopIdx) return;
-    watchStop(tripId, `stop-${selectedStopIdx}`, accessToken).catch(() => {});
-  }, []);
+    if (!tripId) return;
+
+    let cancelled = false;
+
+    async function loadIncidents() {
+      try {
+        const incidents = await getMapIncidents(tripId);
+        if (!cancelled) {
+          setCommunityIncidents(incidents);
+        }
+      } catch {
+        if (!cancelled) {
+          setCommunityIncidents([]);
+        }
+      }
+    }
+
+    loadIncidents();
+
+    const interval = setInterval(loadIncidents, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [tripId]);
 
   useEffect(() => {
     if (!tripId) return;
@@ -557,7 +641,7 @@ export default function PassengerRouteTrackingScreen({
               styles.statusBadge,
               currentStatus === "Delayed"
                 ? styles.delayedBadge
-                : currentStatus === "In Progress"
+                : currentStatus === "In_Progress"
                   ? styles.progressBadge
                   : styles.scheduledBadge,
             ]}
@@ -579,6 +663,16 @@ export default function PassengerRouteTrackingScreen({
             {currentStop?.label || "No seleccionada"}
           </Text>
         </View>
+
+        {areStopsApproximate ? (
+          <Text style={styles.stopHintText}>
+            Paradas aproximadas: esta ruta todavía no tiene paradas registradas.
+          </Text>
+        ) : null}
+
+        {stopWatchError ? (
+          <Text style={styles.stopErrorText}>{stopWatchError}</Text>
+        ) : null}
 
         <Text style={styles.stopText}>
           {tripData.origin} → {tripData.destination}
@@ -786,6 +880,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     marginLeft: 6,
+  },
+  stopHintText: {
+    color: "#8A94A6",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 6,
+  },
+  stopErrorText: {
+    color: "#A6231E",
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 6,
   },
   stopText: { color: "#697386", fontSize: 15, fontWeight: "700", marginTop: 6 },
   metricsRow: { flexDirection: "row", gap: 12, marginTop: 18 },
