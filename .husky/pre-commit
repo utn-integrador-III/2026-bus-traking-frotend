@@ -1,4 +1,10 @@
 #!/bin/sh
+echo "[pre-commit] mobile: tsc --noEmit"
+npm run mobile:typecheck || {
+  echo "[pre-commit] BLOQUEADO: errores de TypeScript en la app movil"
+  exit 1
+}
+
 echo "[pre-commit] design: tsc --noEmit"
 npm run design:typecheck || {
   echo "[pre-commit] BLOQUEADO: errores de TypeScript en packages/design"
@@ -14,6 +20,24 @@ npm run web:typecheck || {
 echo "[pre-commit] web: eslint"
 npm run web:lint || {
   echo "[pre-commit] BLOQUEADO: errores de ESLint en web/"
+  exit 1
+}
+
+echo "[pre-commit] mobile: tsc --noEmit"
+npm run mobile:typecheck || {
+  echo "[pre-commit] BLOQUEADO: errores de TypeScript en la app móvil (raíz)"
+  exit 1
+}
+
+echo "[pre-commit] mobile: eslint"
+npm run mobile:lint || {
+  echo "[pre-commit] BLOQUEADO: errores de ESLint en la app móvil (raíz)"
+  exit 1
+}
+
+echo "[pre-commit] mobile: jest"
+npm run mobile:test -- --silent || {
+  echo "[pre-commit] BLOQUEADO: tests fallidos en la app móvil (raíz)"
   exit 1
 }
 
