@@ -76,7 +76,7 @@ export type RouteInput = Pick<AdminRoute, "name" | "origin" | "destination"> & {
 };
 
 export function updateRoute(id: string, input: RouteInput) {
-  return call<AdminRoute>(`/admin/routes/${id}`, { method: "PUT", body: input });
+  return call<{ updated: true }>(`/admin/routes/${id}`, { method: "PUT", body: input });
 }
 
 export function deactivateDriver(id: string) {
@@ -84,7 +84,7 @@ export function deactivateDriver(id: string) {
 }
 
 export function createRoute(input: RouteInput) {
-  return call<AdminRoute>("/admin/routes", { method: "POST", body: input });
+  return call<{ id: string }>("/admin/routes", { method: "POST", body: input });
 }
 
 export function getStops(routeId?: string) {

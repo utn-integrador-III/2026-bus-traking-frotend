@@ -35,6 +35,7 @@ describe("MapLibre editors", () => {
     expect(screen.getByText(/clic en el mapa/)).toBeTruthy();
     await loadMap();
     act(() => mocks.instances[0].events.click({ lngLat: { lng: -84.1, lat: 9.9 } }));
+    fireEvent.click(screen.getByText("Punto guía"));
     expect(onChange).toHaveBeenCalledWith({ type: "LineString", coordinates: [[-84.1, 9.9]] });
 
     const line = { type: "LineString" as const, coordinates: [[-84.1, 9.9], [-84.2, 10]] as [number, number][] };
@@ -42,7 +43,7 @@ describe("MapLibre editors", () => {
     await waitFor(() => expect(mocks.source.setData).toHaveBeenCalled());
     expect(mocks.instances[0].fitBounds).toHaveBeenCalled();
     fireEvent.click(screen.getByText("Deshacer"));
-    expect(onChange).toHaveBeenCalledWith({ type: "LineString", coordinates: [[-84.1, 9.9]] });
+    expect(onChange).toHaveBeenCalledWith(null);
     fireEvent.click(screen.getByText("Limpiar"));
     expect(onChange).toHaveBeenCalledWith(null);
     unmount();

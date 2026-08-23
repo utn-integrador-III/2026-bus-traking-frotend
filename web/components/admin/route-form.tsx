@@ -4,15 +4,24 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
-import { RouteGeometryEditor } from "@/components/admin/route-geometry-editor";
+import {
+  RouteGeometryEditor,
+  type EditableRouteStop,
+} from "@/components/admin/route-geometry-editor";
 import { saveRouteAction } from "@/app/(admin)/routes/actions";
 import { toLineString } from "@/lib/api/geo";
-import type { AdminRoute, GeoJsonLineString } from "@/lib/api/types";
+import type { AdminRoute, AdminStop, GeoJsonLineString } from "@/lib/api/types";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-border-subtle bg-surface px-4 text-md text-brand outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30";
 
-export function RouteForm({ route }: { route?: AdminRoute }) {
+export function RouteForm({
+  route,
+  initialStops = [],
+}: {
+  route?: AdminRoute;
+  initialStops?: AdminStop[];
+}) {
   const router = useRouter();
   const [name, setName] = useState(route?.name ?? "");
   const [origin, setOrigin] = useState(route?.origin ?? "");
@@ -20,6 +29,19 @@ export function RouteForm({ route }: { route?: AdminRoute }) {
   const [geometry, setGeometry] = useState<GeoJsonLineString | null>(() =>
     toLineString(route?.geometry_geojson),
   );
+  const [stops, setStops] = useState<EditableRouteStop[]>(() =>
+    initialStops
+      .slice()
+      .sort((a, b) => a.stop_order - b.stop_order)
+      .map((stop) => ({
+        id: stop.id,
+        name: stop.name,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        geofence_radius_meters: stop.geofence_radius_meters,
+      })),
+  );
+  const [deletedStopIds, setDeletedStopIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -40,6 +62,8 @@ export function RouteForm({ route }: { route?: AdminRoute }) {
         origin: origin.trim(),
         destination: destination.trim(),
         geometry_geojson: geometry,
+        stops,
+        deleted_stop_ids: deletedStopIds,
       });
       if (!result.ok) {
         setError(result.message);
@@ -96,9 +120,19 @@ export function RouteForm({ route }: { route?: AdminRoute }) {
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card-soft">
         <h2 className="text-3xl font-extrabold text-brand">Recorrido</h2>
         <p className="mb-4 mt-1 text-xs text-text-secondary">
-          La geometría se guarda como GeoJSON LineString en la API.
+          Marcá los puntos principales y usá “Ajustar a calles” para calcular el
+          recorrido vehicular con Google Routes. La geometría final se guarda como
+          GeoJSON LineString.
         </p>
-        <RouteGeometryEditor value={geometry} onChange={setGeometry} />
+        <RouteGeometryEditor
+          value={geometry}
+          onChange={setGeometry}
+          stops={stops}
+          onStopsChange={setStops}
+          onExistingStopRemoved={(id) =>
+            setDeletedStopIds((current) => current.includes(id) ? current : [...current, id])
+          }
+        />
       </div>
 
       {error ? (
