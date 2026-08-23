@@ -131,7 +131,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return null;
   }
 
-  const projectId = readPublicEnv("EXPO_PUBLIC_EAS_PROJECT_ID");
+  const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
   if (!projectId) {
     console.warn("Push token registration skipped: EXPO_PUBLIC_EAS_PROJECT_ID is missing");
