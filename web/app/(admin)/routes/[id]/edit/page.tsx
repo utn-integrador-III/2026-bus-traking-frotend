@@ -4,7 +4,7 @@ import { Icon } from "@/components/icon";
 import { RouteForm } from "@/components/admin/route-form";
 import { LoadError } from "@/components/admin/load-error";
 import { PageHeader } from "@/components/admin/page-header";
-import { getRoutes } from "@/lib/api/admin";
+import { getRoutes, getStops } from "@/lib/api/admin";
 
 export const metadata: Metadata = {
   title: "Editar ruta",
@@ -16,13 +16,21 @@ export default async function EditRoutePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const result = await getRoutes();
+  const [result, stopsResult] = await Promise.all([getRoutes(), getStops(id)]);
 
   if (!result.ok) {
     return (
       <>
         <PageHeader title="Editar ruta" subtitle="No se pudo cargar" />
         <LoadError failure={result} />
+      </>
+    );
+  }
+  if (!stopsResult.ok) {
+    return (
+      <>
+        <PageHeader title="Editar ruta" subtitle="No se pudieron cargar las paradas" />
+        <LoadError failure={stopsResult} />
       </>
     );
   }
@@ -54,7 +62,7 @@ export default async function EditRoutePage({
           Editar ruta
         </h1>
       </div>
-      <RouteForm route={route} />
+      <RouteForm route={route} initialStops={stopsResult.data} />
     </div>
   );
 }

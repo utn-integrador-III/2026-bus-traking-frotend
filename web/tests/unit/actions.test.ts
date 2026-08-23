@@ -62,6 +62,7 @@ describe("admin server actions", () => {
       mocks.createTrip, mocks.updateTripStatus, mocks.updateIncidentStatus,
       mocks.getTelemetryHistory, mocks.deactivateDriver,
     ]) mock.mockResolvedValue({ ok: true, data: [] });
+    mocks.createRoute.mockResolvedValue({ ok: true, data: { id: "new-route" } });
   });
 
   it("validates route input and creates or updates routes", async () => {
@@ -73,12 +74,25 @@ describe("admin server actions", () => {
     ]) {
       await expect(saveRouteAction({ name: "R", origin: "A", destination: "B", geometry_geojson: invalid as never })).resolves.toMatchObject({ ok: false });
     }
-    await expect(saveRouteAction({ name: " R ", origin: " A ", destination: " B ", geometry_geojson: geometry })).resolves.toEqual({ ok: true });
+    await expect(saveRouteAction({ name: " R ", origin: " A ", destination: " B ", geometry_geojson: geometry })).resolves.toMatchObject({ ok: true });
     expect(mocks.createRoute).toHaveBeenCalledWith(expect.objectContaining({ name: "R" }));
-    await expect(saveRouteAction({ id: "r1", name: "R", origin: "A", destination: "B", geometry_geojson: geometry })).resolves.toEqual({ ok: true });
+    await expect(saveRouteAction({ id: "r1", name: "R", origin: "A", destination: "B", geometry_geojson: geometry })).resolves.toMatchObject({ ok: true });
     expect(mocks.updateRoute).toHaveBeenCalledWith("r1", expect.any(Object));
     mocks.createRoute.mockResolvedValueOnce({ ok: false, message: "route error" });
     await expect(saveRouteAction({ name: "R", origin: "A", destination: "B", geometry_geojson: geometry })).resolves.toEqual({ ok: false, message: "route error" });
+  });
+
+  it("deletes removed stops before creating same-order replacements", async () => {
+    await expect(saveRouteAction({
+      id: "r1", name: "R", origin: "A", destination: "B", geometry_geojson: geometry,
+      stops: [{ name: "Replacement", latitude: 9.9, longitude: -84, geofence_radius_meters: 500 }],
+      deleted_stop_ids: ["old-stop"],
+    })).resolves.toEqual({ ok: true, id: "r1" });
+
+    expect(mocks.deleteStop).toHaveBeenCalledWith("old-stop");
+    expect(mocks.deleteStop.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.createStop.mock.invocationCallOrder[0],
+    );
   });
 
   it("deactivates and reactivates routes", async () => {
