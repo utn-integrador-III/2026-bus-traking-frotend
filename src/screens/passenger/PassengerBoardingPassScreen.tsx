@@ -1,8 +1,10 @@
 import React from "react";
 import {
+  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -21,6 +23,19 @@ export default function PassengerBoardingPassScreen({
   onBackHome,
   onBackToTrip,
 }: PassengerBoardingPassScreenProps) {
+  async function handleShareTicket() {
+    try {
+      await Share.share({
+        message: ticket.qr_payload,
+        title: "Mi boleto BusTrack",
+      });
+    } catch {
+      Alert.alert("Compartir", "No se pudo compartir el boleto.");
+    }
+  }
+
+  const isSeniorTicket = ticket.payment_type === "Senior_Exemption";
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -30,8 +45,16 @@ export default function PassengerBoardingPassScreen({
             <Text style={styles.headerSubtitle}>Pase activo para abordar</Text>
           </View>
 
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>Activo</Text>
+          <View
+            style={isSeniorTicket ? styles.seniorBadge : styles.activeBadge}
+          >
+            <Text
+              style={
+                isSeniorTicket ? styles.seniorBadgeText : styles.activeBadgeText
+              }
+            >
+              {isSeniorTicket ? "Adulto Mayor" : "Activo"}
+            </Text>
           </View>
         </View>
 
@@ -47,12 +70,30 @@ export default function PassengerBoardingPassScreen({
             </View>
           </View>
 
-          <View style={styles.qrFrame}>
+          {isSeniorTicket ? (
+            <View style={styles.seniorBanner}>
+              <Text style={styles.seniorBannerIcon}>🏛</Text>
+              <View style={styles.seniorBannerTextBlock}>
+                <Text style={styles.seniorBannerTitle}>
+                  Beneficio Institucional
+                </Text>
+                <Text style={styles.seniorBannerSubtitle}>
+                  Adulto Mayor — Tarifa ₡0
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
+          <View
+            style={
+              isSeniorTicket ? styles.qrFrameSenior : styles.qrFrame
+            }
+          >
             <QRCode
               value={ticket.qr_payload}
               size={235}
               backgroundColor="#FFFFFF"
-              color="#000000"
+              color={isSeniorTicket ? "#0E4D6E" : "#000000"}
             />
           </View>
 
@@ -79,8 +120,16 @@ export default function PassengerBoardingPassScreen({
 
             <View style={styles.infoBox}>
               <Text style={styles.infoLabel}>Pago</Text>
-              <Text style={styles.infoValue}>
-                {ticket.payment_type || "Mock"}
+              <Text
+                style={
+                  isSeniorTicket
+                    ? styles.infoValueSenior
+                    : styles.infoValue
+                }
+              >
+                {isSeniorTicket
+                  ? "Exención ($0)"
+                  : ticket.payment_type || "Mock"}
               </Text>
             </View>
 
@@ -99,20 +148,36 @@ export default function PassengerBoardingPassScreen({
             </Text>
           </View>
 
-          <View style={styles.securityBox}>
-            <Text style={styles.securityTitle}>QR de alto contraste</Text>
-            <Text style={styles.securityText}>
-              El código contiene un payload seguro generado por el backend.
+          <View
+            style={isSeniorTicket ? styles.seniorNoteBox : styles.securityBox}
+          >
+            <Text
+              style={
+                isSeniorTicket ? styles.seniorNoteTitle : styles.securityTitle
+              }
+            >
+              {isSeniorTicket
+                ? "Beneficio transitario verificado"
+                : "QR de alto contraste"}
+            </Text>
+            <Text
+              style={
+                isSeniorTicket ? styles.seniorNoteText : styles.securityText
+              }
+            >
+              {isSeniorTicket
+                ? "Tarifa ₡0 aplicada bajo estructura de beneficios para adultos mayores."
+                : "El código contiene un payload seguro generado por el backend."}
             </Text>
           </View>
         </View>
 
         <View style={styles.actionsRow}>
-          <Pressable style={styles.secondarySmallButton}>
-            <Text style={styles.secondarySmallText}>Guardar</Text>
-          </Pressable>
-
-          <Pressable style={styles.secondarySmallButton}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleShareTicket}
+            style={styles.secondarySmallButton}
+          >
             <Text style={styles.secondarySmallText}>Compartir</Text>
           </Pressable>
         </View>
@@ -164,6 +229,16 @@ const styles = StyleSheet.create({
     color: "#087D3B",
     fontWeight: "900",
   },
+  seniorBadge: {
+    backgroundColor: "#E8F0FE",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  seniorBadgeText: {
+    color: "#1A56DB",
+    fontWeight: "900",
+  },
   ticketCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 32,
@@ -203,10 +278,44 @@ const styles = StyleSheet.create({
     color: "#087D3B",
     fontWeight: "900",
   },
+  seniorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F0FE",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 18,
+    gap: 12,
+  },
+  seniorBannerIcon: {
+    fontSize: 28,
+  },
+  seniorBannerTextBlock: {
+    flex: 1,
+  },
+  seniorBannerTitle: {
+    color: "#1A56DB",
+    fontWeight: "900",
+    fontSize: 15,
+  },
+  seniorBannerSubtitle: {
+    color: "#3B5DAA",
+    fontWeight: "700",
+    marginTop: 2,
+  },
   qrFrame: {
     backgroundColor: "#FFFFFF",
     borderWidth: 5,
     borderColor: "#000000",
+    borderRadius: 24,
+    padding: 18,
+    alignItems: "center",
+    alignSelf: "center",
+  },
+  qrFrameSenior: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 5,
+    borderColor: "#0E4D6E",
     borderRadius: 24,
     padding: 18,
     alignItems: "center",
@@ -260,6 +369,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 15,
   },
+  infoValueSenior: {
+    color: "#087D3B",
+    fontWeight: "900",
+    fontSize: 15,
+  },
   fullRow: {
     backgroundColor: "#F3F4F1",
     borderRadius: 18,
@@ -281,6 +395,22 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     marginTop: 14,
+  },
+  seniorNoteBox: {
+    backgroundColor: "#E8F0FE",
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 14,
+  },
+  seniorNoteTitle: {
+    color: "#1A56DB",
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  seniorNoteText: {
+    color: "#3B5DAA",
+    fontWeight: "600",
+    lineHeight: 19,
   },
   securityTitle: {
     color: "#0F2141",

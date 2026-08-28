@@ -14,14 +14,18 @@ import MapView, { AnimatedRegion, LatLng, Marker, Polyline } from "react-native-
 import {
   AuthUser,
   getPassengerHomeTripsPreview,
+  getTripStops,
   PassHomeTripsPreview,
+  StopRaw,
   watchStop,
 } from "../../services/apiClient";
 import { supabase } from "../../lib/supabase";
+import {
+  BOARDING_RADIUS_METERS,
+} from "../../config/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MAP_HEIGHT = SCREEN_WIDTH * 0.7;
-const BOARDING_RADIUS = 150;
 
 interface LiveBusPosition {
   latitude: number;
@@ -32,6 +36,7 @@ interface LiveBusPosition {
 }
 
 interface StopMarker {
+  id: string | null;
   latitude: number;
   longitude: number;
   label: string;
@@ -97,6 +102,7 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
   const markers: StopMarker[] = [];
   markers.push({
     ...coords[0],
+    id: null,
     label: "Abordaje",
     index: 0,
     isBoarding: true,
@@ -108,6 +114,7 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
       if (markers.length >= 6) break;
       markers.push({
         ...coords[i],
+        id: null,
         label: `Parada ${markers.length}`,
         index: i,
         isBoarding: false,
@@ -118,6 +125,7 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
   if (coords.length > 1) {
     markers.push({
       ...coords[coords.length - 1],
+      id: null,
       label: "Destino",
       index: coords.length - 1,
       isBoarding: false,
@@ -125,6 +133,20 @@ function buildStopMarkers(coords: LatLng[]): StopMarker[] {
     });
   }
   return markers;
+}
+
+function buildStopMarkersFromRouteStops(routeStops: StopRaw[]): StopMarker[] {
+  return [...routeStops]
+    .sort((a, b) => a.stop_order - b.stop_order)
+    .map((stop, position, all) => ({
+      id: stop.id,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      label: stop.name,
+      index: position,
+      isBoarding: position === 0,
+      isDestination: position === all.length - 1,
+    }));
 }
 
 export default function PassengerHomeScreen({
@@ -143,11 +165,15 @@ export default function PassengerHomeScreen({
   const [liveLocation, setLiveLocation] = useState<LiveBusPosition | null>(null);
   const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
   const [watchedStopId, setWatchedStopId] = useState<string | null>(null);
+  const [routeStops, setRouteStops] = useState<StopRaw[]>([]);
+  const [stopWatchError, setStopWatchError] = useState("");
 
   const mapRef = useRef<MapView>(null);
   const wasNearBoarding = useRef(false);
   const missedAlertShown = useRef(false);
   const realtimeChannel = useRef<any>(null);
+  const boardingNodeRef = useRef<LatLng | null>(null);
+  const selectedStopIndexRef = useRef<number | null>(null);
 
   const animatedCoord = useRef(
     new AnimatedRegion({
@@ -169,8 +195,11 @@ export default function PassengerHomeScreen({
   );
 
   const stopMarkers = useMemo(
-    () => buildStopMarkers(routeCoords),
-    [routeCoords],
+    () =>
+      routeStops.length > 0
+        ? buildStopMarkersFromRouteStops(routeStops)
+        : buildStopMarkers(routeCoords),
+    [routeCoords, routeStops],
   );
 
   const stopMarkerCoords = useMemo(
@@ -219,6 +248,7 @@ export default function PassengerHomeScreen({
     setLiveLocation(null);
     setSelectedStopIndex(null);
     setWatchedStopId(null);
+    setStopWatchError("");
     wasNearBoarding.current = false;
     missedAlertShown.current = false;
   }
@@ -226,11 +256,24 @@ export default function PassengerHomeScreen({
   async function handleSelectStop(marker: StopMarker) {
     setSelectedStopIndex(marker.index);
     if (!selectedTripId) return;
+    if (!marker.id) {
+      setWatchedStopId(null);
+      setStopWatchError(
+        "Esta parada es aproximada y no se puede registrar en el servidor.",
+      );
+      return;
+    }
     try {
-      const result = await watchStop(selectedTripId, `stop-${marker.index}`, accessToken);
+      const result = await watchStop(selectedTripId, marker.id, accessToken);
       setWatchedStopId(result.stop_id);
-    } catch {
-      setWatchedStopId(`stop-${marker.index}`);
+      setStopWatchError("");
+    } catch (error) {
+      setWatchedStopId(null);
+      setStopWatchError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar la parada seleccionada.",
+      );
     }
   }
 
@@ -267,13 +310,14 @@ export default function PassengerHomeScreen({
   }
 
   function evaluateBoardingPass(busPos: LatLng) {
-    if (!boardingNode || selectedStopIndex !== null) return;
-    const dist = haversineMeters(busPos, boardingNode);
-    if (dist <= BOARDING_RADIUS) {
+    const boarding = boardingNodeRef.current;
+    if (!boarding || selectedStopIndexRef.current !== null) return;
+    const dist = haversineMeters(busPos, boarding);
+    if (dist <= BOARDING_RADIUS_METERS) {
       wasNearBoarding.current = true;
       return;
     }
-    if (wasNearBoarding.current && dist > BOARDING_RADIUS) {
+    if (wasNearBoarding.current && dist > BOARDING_RADIUS_METERS) {
       wasNearBoarding.current = false;
       handleMissedBus();
     }
@@ -294,6 +338,14 @@ export default function PassengerHomeScreen({
   }
 
   useEffect(() => {
+    boardingNodeRef.current = boardingNode;
+  }, [boardingNode]);
+
+  useEffect(() => {
+    selectedStopIndexRef.current = selectedStopIndex;
+  }, [selectedStopIndex]);
+
+  useEffect(() => {
     if (mapRef.current && routeCoords.length > 0) {
       mapRef.current.animateToRegion(mapRegion, 500);
     }
@@ -308,6 +360,25 @@ export default function PassengerHomeScreen({
   useEffect(() => {
     loadTrips();
   }, [accessToken]);
+
+  useEffect(() => {
+    const routeId = selectedTrip?.routeId;
+    if (!routeId) {
+      setRouteStops([]);
+      return;
+    }
+    let isMounted = true;
+    getTripStops(routeId, accessToken)
+      .then((stops) => {
+        if (isMounted) setRouteStops(stops || []);
+      })
+      .catch(() => {
+        if (isMounted) setRouteStops([]);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, selectedTrip?.routeId]);
 
   useEffect(() => {
     if (!selectedTripId) {
@@ -334,23 +405,6 @@ export default function PassengerHomeScreen({
       realtimeChannel.current = null;
     };
   }, [selectedTripId]);
-
-  useEffect(() => {
-    if (!accessToken || !user.id) return;
-    const alertChannel = supabase
-      .channel(`home:passenger:${user.id}:alerts`)
-      .on("broadcast", { event: "bus_approaching" }, (payload: any) => {
-        const data = payload?.payload || payload;
-        Alert.alert(
-          "Bus acercándose",
-          `El bus está a menos de 500m de tu parada. Preparate para abordar.`,
-        );
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(alertChannel);
-    };
-  }, [accessToken, user.id]);
 
   function getStatusStyle(status: string) {
     if (status === "Delayed") return styles.delayedBadge;
@@ -435,6 +489,16 @@ export default function PassengerHomeScreen({
             </View>
           )}
         </View>
+
+        {selectedTrip && routeStops.length === 0 ? (
+          <Text style={styles.stopHintText}>
+            Paradas aproximadas: esta ruta todavía no tiene paradas registradas.
+          </Text>
+        ) : null}
+
+        {stopWatchError ? (
+          <Text style={styles.stopErrorText}>{stopWatchError}</Text>
+        ) : null}
 
         {selectedTrip && (
           <View style={styles.selectedBar}>
@@ -566,13 +630,23 @@ export default function PassengerHomeScreen({
           />
         )}
 
-        <View style={styles.bottomTabs}>
-          <Text style={styles.activeTab}>Inicio</Text>
-          <Text style={styles.tab}>Rutas</Text>
-          <Pressable onPress={onOpenTickets}>
+        <View accessibilityRole="tablist" style={styles.bottomTabs}>
+          <Text
+            accessibilityRole="tab"
+            accessibilityState={{ selected: true }}
+            style={styles.activeTab}
+          >
+            Inicio
+          </Text>
+          <Text accessibilityRole="text" style={styles.disabledTab}>
+            Rutas
+          </Text>
+          <Pressable accessibilityRole="tab" onPress={onOpenTickets}>
             <Text style={styles.tab}>Boletos</Text>
           </Pressable>
-          <Text style={styles.tab}>Perfil</Text>
+          <Text accessibilityRole="text" style={styles.disabledTab}>
+            Perfil
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -678,6 +752,18 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   busMarkerLiveText: { color: "#0F2141", fontWeight: "900", fontSize: 11 },
+  stopHintText: {
+    color: "#8A94A6",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  stopErrorText: {
+    color: "#A6231E",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
   selectedBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -830,4 +916,10 @@ const styles = StyleSheet.create({
   },
   activeTab: { color: "#0F2141", fontWeight: "900", fontSize: 13 },
   tab: { color: "#8A94A6", fontWeight: "700", fontSize: 13 },
+  disabledTab: {
+    color: "#C2C8D2",
+    fontWeight: "700",
+    fontSize: 13,
+    opacity: 0.6,
+  },
 });

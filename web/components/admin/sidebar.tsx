@@ -16,6 +16,9 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Panel", icon: "grid" },
   { href: "/routes", label: "Rutas", icon: "shareNet" },
+  { href: "/stops", label: "Paradas", icon: "mapPin" },
+  { href: "/trips", label: "Viajes", icon: "bus" },
+  { href: "/telemetry", label: "Historial", icon: "activity" },
   { href: "/users", label: "Usuarios", icon: "users" },
   { href: "/incidents", label: "Alertas", icon: "alertTriangle" },
 ];

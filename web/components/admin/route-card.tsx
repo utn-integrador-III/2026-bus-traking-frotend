@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { Badge } from "@/components/admin/badge";
 import { toLineString } from "@/lib/api/geo";
@@ -90,6 +91,13 @@ export function RouteCard({ route }: { route: AdminRoute }) {
       ) : null}
 
       <div className="mt-4 flex gap-2 border-t border-divider pt-4">
+        <Link
+          href={`/routes/${route.id}/edit`}
+          className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-border-subtle text-sm font-bold text-brand hover:bg-surface-alt"
+        >
+          <Icon name="edit" size={14} />
+          Editar
+        </Link>
         <button
           type="button"
           onClick={toggle}

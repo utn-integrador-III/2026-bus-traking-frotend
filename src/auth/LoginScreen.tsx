@@ -22,8 +22,8 @@ export default function LoginScreen({
   onLoginSuccess,
   onGoToRegister,
 }: LoginScreenProps) {
-  const [email, setEmail] = useState("carlos.passenger500@example.com");
-  const [password, setPassword] = useState("Password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleLogin() {

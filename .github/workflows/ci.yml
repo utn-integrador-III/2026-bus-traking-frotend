@@ -31,6 +31,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - run: npm run mobile:typecheck
       - run: npm run design:typecheck
       - run: npm run web:typecheck
 
@@ -48,6 +49,21 @@ jobs:
       - name: Verify zero code comments
         run: npm run web:strip:dry
 
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run mobile:typecheck
+      - run: npm run mobile:lint
+      - name: Run mobile test suite
+        run: npm run mobile:test:coverage -- --silent
+
   build:
     runs-on: ubuntu-latest
     env:
@@ -61,6 +77,24 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run web:build
+
+  web-unit:
+    runs-on: ubuntu-latest
+    needs: [build]
+    env:
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000/api"
+      NEXT_PUBLIC_SUPABASE_URL: "https://ci.example.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-dummy-anon-key"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Run web unit test suite with coverage
+        run: npm run web:test:coverage
 
   test:
     runs-on: ubuntu-latest

@@ -3,5 +3,3 @@ export const BOARDING_RADIUS_METERS = 150;
 export const GEOFENCE_RADIUS_METERS = 500;
 
 export const ETA_REFRESH_INTERVAL_MS = 20000;
-
-export const LOCATION_POLL_INTERVAL_MS = 2000;
