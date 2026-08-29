@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/admin/page-header";
 import { LoadError } from "@/components/admin/load-error";
+import { RefreshButton } from "@/components/admin/refresh-button";
 import { SeniorRequestList } from "@/components/admin/senior-request-list";
 import { getSeniorRequests } from "@/lib/api/admin";
 
@@ -14,7 +15,11 @@ export default async function SeniorRequestsPage() {
   if (!result.ok) {
     return (
       <>
-        <PageHeader title="Adultos mayores" subtitle="No se pudieron cargar" />
+        <PageHeader
+          title="Adultos mayores"
+          subtitle="No se pudieron cargar"
+          action={<RefreshButton />}
+        />
         <LoadError failure={result} />
       </>
     );
@@ -29,6 +34,7 @@ export default async function SeniorRequestsPage() {
             ? "1 solicitud pendiente de revisión"
             : `${result.data.length} solicitudes pendientes de revisión`
         }
+        action={<RefreshButton />}
       />
       <SeniorRequestList requests={result.data} />
     </>
