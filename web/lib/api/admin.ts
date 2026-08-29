@@ -85,6 +85,10 @@ export function deactivateDriver(id: string) {
   return call<AdminDriver>(`/admin/drivers/${id}`, { method: "DELETE" });
 }
 
+export function reactivateDriver(id: string) {
+  return call<AdminDriver>(`/admin/drivers/${id}/reactivate`, { method: "POST" });
+}
+
 export function createRoute(input: RouteInput) {
   return call<{ id: string }>("/admin/routes", { method: "POST", body: input });
 }

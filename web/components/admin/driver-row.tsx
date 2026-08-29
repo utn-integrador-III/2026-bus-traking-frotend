@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/icon";
 import { Badge } from "@/components/admin/badge";
-import { deactivateDriverAction } from "@/app/(admin)/users/actions";
+import { deactivateDriverAction, reactivateDriverAction } from "@/app/(admin)/users/actions";
 import type { AdminDriver } from "@/lib/api/types";
 
 export function DriverRow({ driver }: { driver: AdminDriver }) {
@@ -17,6 +17,14 @@ export function DriverRow({ driver }: { driver: AdminDriver }) {
       const result = await deactivateDriverAction(driver.user_id);
       if (!result.ok) setError(result.message);
       setConfirming(false);
+    });
+  }
+
+  function reactivate() {
+    setError(null);
+    startTransition(async () => {
+      const result = await reactivateDriverAction(driver.user_id);
+      if (!result.ok) setError(result.message);
     });
   }
 
@@ -62,6 +70,17 @@ export function DriverRow({ driver }: { driver: AdminDriver }) {
             Desactivar
           </button>
         ) : null}
+
+        {!driver.is_active ? (
+          <button
+            type="button"
+            onClick={reactivate}
+            disabled={pending}
+            className="h-9 shrink-0 rounded-lg bg-success-bg px-3 text-sm font-bold text-success hover:brightness-95 disabled:opacity-60"
+          >
+            {pending ? "Activando…" : "Activar"}
+          </button>
+        ) : null}
       </div>
 
       {confirming ? (
@@ -70,8 +89,7 @@ export function DriverRow({ driver }: { driver: AdminDriver }) {
             ¿Desactivar a {driver.name}?
           </p>
           <p className="mt-0.5 text-xs text-text-secondary">
-            La API no expone forma de reactivarlo: esto no se puede deshacer desde
-            la consola.
+            El conductor no podrá iniciar sesión. Podés reactivarlo después.
           </p>
           <div className="mt-3 flex gap-2">
             <button
