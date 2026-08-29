@@ -16,12 +16,12 @@ export async function saveTripAction(input: TripFormInput): Promise<ActionResult
   const routeId = input.route_id.trim();
   const busId = input.bus_id.trim();
   const driverId = input.driver_id.trim();
-  const departure = new Date(input.departure_time);
+  const departure = Date.parse(input.departure_time);
 
   if (!routeId || !busId || !driverId) {
     return { ok: false, message: "Ruta, autobús y conductor son obligatorios." };
   }
-  if (Number.isNaN(departure.getTime())) {
+  if (Number.isNaN(departure)) {
     return { ok: false, message: "La hora de salida no es válida." };
   }
 
@@ -29,7 +29,7 @@ export async function saveTripAction(input: TripFormInput): Promise<ActionResult
     route_id: routeId,
     bus_id: busId,
     driver_id: driverId,
-    departure_time: departure.toISOString(),
+    departure_time: new Date(departure).toISOString(),
   });
 
   if (!result.ok) return { ok: false, message: result.message };

@@ -61,12 +61,18 @@ export function TelemetryHistory({
       setError("Seleccioná un viaje.");
       return;
     }
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      setError("El rango de fechas no es válido.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await loadTelemetryHistoryAction({
         trip_id: tripId,
-        start_time: startTime,
-        end_time: endTime,
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
       });
       if (!result.ok) {
         setError(result.message);
@@ -109,7 +115,7 @@ export function TelemetryHistory({
               className={inputClass}
             >
               {orderedTrips.map((trip) => (
-                <option key={trip.id} value={trip.id}>
+                <option key={trip.id} value={trip.id} suppressHydrationWarning>
                   {routeName.get(trip.route_id) ?? "Ruta desconocida"} ·{" "}
                   {new Date(trip.departure_time).toLocaleString("es-CR")} ·{" "}
                   {trip.status}
