@@ -155,3 +155,4 @@ android/
 *.key
 *.mobileprovision
 *.orig.*
+.vercel/
