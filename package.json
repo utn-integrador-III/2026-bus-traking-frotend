@@ -14,7 +14,7 @@
     "ios": "npx expo start --ios",
     "mobile:typecheck": "tsc -p tsconfig.mobile.json --noEmit",
     "mobile:lint": "eslint src --config eslint.config.mobile.mjs",
-    "mobile:test": "jest",
+    "mobile:test": "jest --runInBand",
     "mobile:strip:dry": "node tools/strip-comments.mjs --dry-run",
     "mobile:env:check": "node scripts/check-mobile-env.mjs",
     "prepare": "husky",
