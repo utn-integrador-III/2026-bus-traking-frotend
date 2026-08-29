@@ -117,6 +117,39 @@ export type CurrentTelemetry = TelemetryPoint & {
   status: TripStatus;
 };
 
+export type SeniorRequestStatus = "pending" | "approved" | "rejected";
+
+export type AdminSeniorRequest = {
+  id: string;
+  passenger_id: string;
+  document_image_bucket: string;
+  document_image_path: string;
+  document_image_url: string | null;
+  status: SeniorRequestStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    is_active: boolean;
+    deactivated_at: string | null;
+    created_at: string;
+  } | null;
+  passenger: {
+    user_id: string;
+    phone: string | null;
+    notification_preferences: unknown;
+    is_senior: boolean;
+    expo_push_token: string | null;
+    birth_date: string | null;
+    senior_status: string | null;
+  } | null;
+};
+
 export type SessionUser = {
   id: string;
   email: string;

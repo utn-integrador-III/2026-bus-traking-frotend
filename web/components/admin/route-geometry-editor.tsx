@@ -15,6 +15,10 @@ function lines(coordinates: Position[]) {
   return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "LineString" as const, coordinates }, properties: {} }] };
 }
 
+function pointFeatures(points: Position[]) {
+  return { type: "FeatureCollection" as const, features: points.map((coordinates) => ({ type: "Feature" as const, geometry: { type: "Point" as const, coordinates }, properties: {} })) };
+}
+
 function initialPoints(coordinates: Position[], stops: EditableRouteStop[]) {
   if (coordinates.length === 0) return [];
   const base = coordinates.length > 25 ? [coordinates[0], coordinates.at(-1)!] : coordinates;
@@ -65,6 +69,7 @@ export function RouteGeometryEditor({ value, onChange, stops = [], onStopsChange
   const [radius, setRadius] = useState("500");
   const coordinates = useMemo(() => value?.coordinates ?? [], [value]);
   const [points, setPoints] = useState<Position[]>(() => initialPoints(coordinates, stops));
+  const [showGuides, setShowGuides] = useState(coordinates.length === 0);
   const pointsRef = useRef<Position[]>(initialPoints(coordinates, stops));
   const stopsRef = useRef(stops);
 
@@ -83,7 +88,8 @@ export function RouteGeometryEditor({ value, onChange, stops = [], onStopsChange
       map.on("load", () => {
         map.addSource("drawing", { type: "geojson", data: lines([]) });
         map.addLayer({ id: "drawing-line", type: "line", source: "drawing", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#fca311", "line-width": 4 } });
-        map.addLayer({ id: "drawing-vertices", type: "circle", source: "drawing", paint: { "circle-color": "#14213d", "circle-radius": 5, "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
+        map.addSource("guide-points", { type: "geojson", data: pointFeatures([]) });
+        map.addLayer({ id: "drawing-vertices", type: "circle", source: "guide-points", paint: { "circle-color": "#14213d", "circle-radius": 5, "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
         map.addSource("route-stops", { type: "geojson", data: stopFeatures([]) });
         map.addLayer({ id: "stop-fill", type: "fill", source: "route-stops", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#fca311", "fill-opacity": 0.14 } });
         map.addLayer({ id: "stop-line", type: "line", source: "route-stops", filter: ["==", ["geometry-type"], "Polygon"], paint: { "line-color": "#fca311", "line-width": 2, "line-dasharray": [2, 2] } });
@@ -100,9 +106,11 @@ export function RouteGeometryEditor({ value, onChange, stops = [], onStopsChange
     if (!ready) return;
     const source = mapRef.current?.getSource("drawing");
     if (source) (source as import("maplibre-gl").GeoJSONSource).setData(lines(coordinates));
+    const guideSource = mapRef.current?.getSource("guide-points");
+    if (guideSource) (guideSource as import("maplibre-gl").GeoJSONSource).setData(pointFeatures(showGuides ? points : []));
     const bounds = coordinates.length ? boundsOf([{ type: "LineString", coordinates }]) : null;
     if (bounds) mapRef.current?.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 0 });
-  }, [ready, coordinates]);
+  }, [ready, coordinates, points, showGuides]);
 
   useEffect(() => {
     const source = ready ? mapRef.current?.getSource("route-stops") : null;
@@ -113,6 +121,7 @@ export function RouteGeometryEditor({ value, onChange, stops = [], onStopsChange
     const next = [...pointsRef.current, point];
     pointsRef.current = next;
     setPoints(next);
+    setShowGuides(true);
     onChange({ type: "LineString", coordinates: next });
     setPending(null); setError(null);
   }
@@ -151,7 +160,7 @@ export function RouteGeometryEditor({ value, onChange, stops = [], onStopsChange
     setPoints(next);
     onChange(next.length ? { type: "LineString", coordinates: next } : null);
   }
-  function clear() { for (const stop of stops) if (stop.id) onExistingStopRemoved?.(stop.id); onStopsChange?.([]); setPoints([]); onChange(null); }
+  function clear() { for (const stop of stops) if (stop.id) onExistingStopRemoved?.(stop.id); onStopsChange?.([]); setPoints([]); setShowGuides(false); onChange(null); }
 
   async function snap() {
     if (points.length < 2 || snapping) return;
@@ -161,6 +170,7 @@ export function RouteGeometryEditor({ value, onChange, stops = [], onStopsChange
       const data = await response.json().catch(() => null) as { geometry?: GeoJsonLineString; message?: string } | null;
       if (!response.ok || !data?.geometry) { setError(data?.message ?? "No se pudo ajustar el recorrido a las calles."); return; }
       onChange(data.geometry);
+      setShowGuides(false);
     } catch { setError("No se pudo conectar con el servicio de rutas."); }
     finally { setSnapping(false); }
   }

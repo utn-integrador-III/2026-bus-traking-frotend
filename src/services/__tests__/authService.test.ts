@@ -108,7 +108,7 @@ describe("authService", () => {
     ).resolves.toBe("senior/id.jpg");
 
     expect(mockApiRequest).toHaveBeenCalledWith(
-      "/api/auth/senior-document/upload-url",
+      "/api/auth/senior-document/pre-register-upload-url",
       expect.objectContaining({
         body: expect.objectContaining({ email: "ana@example.com", file_name: "id.jpg" }),
       }),

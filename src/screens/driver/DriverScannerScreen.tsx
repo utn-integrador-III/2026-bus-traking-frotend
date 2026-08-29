@@ -16,13 +16,23 @@ interface DriverScannerScreenProps {
   onBack: () => void;
 }
 
-function decodeBase64Url(base64Url: string) {
+function decodeBase64Url(value: string) {
+  const normalized = value.includes("%") ? decodeURIComponent(value) : value;
+  const trimmed = normalized.trim();
+  const decoded = trimmed.startsWith("{")
+    ? JSON.parse(trimmed)
+    : JSON.parse(atob(toBase64(trimmed)));
+
+  return decoded.payload ?? decoded;
+}
+
+function toBase64(base64Url: string) {
   let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
   const pad = base64.length % 4;
   if (pad) {
     base64 += new Array(5 - pad).join("=");
   }
-  return JSON.parse(atob(base64));
+  return base64;
 }
 
 export default function DriverScannerScreen({
@@ -87,7 +97,9 @@ export default function DriverScannerScreen({
     } catch (error: any) {
       setFeedbackType("error");
       setFeedbackMessage(
-        error.message || "Error desconocido al procesar el ticket."
+        error instanceof URIError || error instanceof SyntaxError
+          ? "El código QR del boleto no es válido."
+          : error.message || "Error desconocido al procesar el ticket."
       );
     } finally {
       setTimeout(() => {

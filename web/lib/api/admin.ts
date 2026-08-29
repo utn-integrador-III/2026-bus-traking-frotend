@@ -7,6 +7,7 @@ import type {
   AdminIncident,
   AdminRoute,
   AdminStop,
+  AdminSeniorRequest,
   AdminTrip,
   AdminTripInput,
   CurrentTelemetry,
@@ -14,6 +15,7 @@ import type {
   StopInput,
   TelemetryPoint,
   TripStatus,
+  SeniorRequestStatus,
 } from "./types";
 
 export type LoadResult<T> =
@@ -153,4 +155,24 @@ export function getTelemetryHistory(params: {
 
 export function getCurrentTelemetry() {
   return call<CurrentTelemetry[]>("/admin/telemetry/current");
+}
+
+export function getSeniorRequests(status: SeniorRequestStatus = "pending") {
+  return call<AdminSeniorRequest[]>(
+    `/admin/senior-requests?status=${encodeURIComponent(status)}`,
+  );
+}
+
+export function approveSeniorRequest(id: string) {
+  return call<AdminSeniorRequest>(`/admin/senior-requests/${id}/approve`, {
+    method: "PATCH",
+    body: {},
+  });
+}
+
+export function rejectSeniorRequest(id: string, rejectionReason: string) {
+  return call<AdminSeniorRequest>(`/admin/senior-requests/${id}/reject`, {
+    method: "PATCH",
+    body: { rejection_reason: rejectionReason },
+  });
 }

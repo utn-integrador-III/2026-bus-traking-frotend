@@ -161,13 +161,14 @@ describe("PassengerRouteTrackingScreen", () => {
     await screen.unmount();
   });
 
-  it("uses approximate stops when route stops are unavailable", async () => {
+  it("does not create notification targets when route stops are unavailable", async () => {
     mockApi.trip.mockResolvedValueOnce({ ...tripData, routeId: null, status: "Scheduled" });
     const screen = await renderTracking();
     expect(screen.getByText("Scheduled")).toBeTruthy();
-    expect(screen.getByText(/Paradas aproximadas/)).toBeTruthy();
-    await fireEvent.press(screen.getByText("P1"));
-    expect(screen.getByText(/Esta parada es aproximada/)).toBeTruthy();
+    expect(screen.getByText(/no tiene paradas registradas/)).toBeTruthy();
+    expect(screen.queryByText("P1")).toBeNull();
+    expect(screen.getByText("No seleccionada")).toBeTruthy();
+    expect(mockApi.watch).not.toHaveBeenCalled();
     await screen.unmount();
   });
 
@@ -194,7 +195,7 @@ describe("PassengerRouteTrackingScreen", () => {
     mockApi.stops.mockRejectedValueOnce(new Error("stops"));
     mockApi.incidents.mockRejectedValueOnce(new Error("incidents"));
     const screen = await renderTracking();
-    await waitFor(() => expect(screen.getByText(/Paradas aproximadas/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/no tiene paradas registradas/)).toBeTruthy());
     await screen.unmount();
   });
 });
