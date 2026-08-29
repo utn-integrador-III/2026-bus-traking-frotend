@@ -177,6 +177,41 @@ function getFriendlyError(error: unknown) {
   return "No se pudo conectar con el servidor. Revisa tu conexion e intenta otra vez.";
 }
 
+function getPasswordStrength(password: string) {
+  if (!password) {
+    return 0;
+  }
+
+  let score = 0;
+  if (password.length >= 8) {
+    score += 1;
+  }
+  if (password.length >= 12) {
+    score += 1;
+  }
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) {
+    score += 1;
+  }
+  if (/\d/.test(password) || /[^A-Za-z0-9]/.test(password)) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function getStrengthFeedback(password: string) {
+  const score = getPasswordStrength(password);
+
+  if (score <= 1) {
+    return { label: "Debil", segments: 1, color: palette.danger.DEFAULT };
+  }
+  if (score === 2) {
+    return { label: "Media", segments: 2, color: palette.warning.DEFAULT };
+  }
+
+  return { label: "Fuerte", segments: score, color: palette.success.DEFAULT };
+}
+
 function AuthInput({
   autoCapitalize,
   autoComplete,
@@ -237,6 +272,8 @@ export default function RegisterPassengerScreen({ onRegistered }: RegisterPassen
         !isGoogleSubmitting,
     );
   }, [form, isSubmitting, isTakingPhoto, isGoogleSubmitting]);
+
+  const strengthFeedback = getStrengthFeedback(form.password);
 
   function updateField(field: TextFieldName, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -365,12 +402,7 @@ export default function RegisterPassengerScreen({ onRegistered }: RegisterPassen
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Pressable accessibilityRole="button" style={styles.backButton}>
-              <Feather color={palette.navy.DEFAULT} name="arrow-left" size={18} />
-            </Pressable>
-            <Text style={styles.title}>Crear cuenta</Text>
-          </View>
+          <Text style={styles.title}>Crear cuenta</Text>
 
           <View style={styles.form}>
             <AuthInput
@@ -410,18 +442,41 @@ export default function RegisterPassengerScreen({ onRegistered }: RegisterPassen
               value={form.phone}
             />
 
-            <AuthInput
-              autoCapitalize="none"
-              autoComplete="off"
-              error={errors.password}
-              icon="lock"
-              label="Contrasena"
-              onChangeText={(value) => updateField("password", value)}
-              placeholder="Minimo 8 caracteres"
-              secureTextEntry
-              textContentType="newPassword"
-              value={form.password}
-            />
+            <View style={styles.passwordBlock}>
+              <AuthInput
+                autoCapitalize="none"
+                autoComplete="off"
+                error={errors.password}
+                icon="lock"
+                label="Contrasena"
+                onChangeText={(value) => updateField("password", value)}
+                placeholder="Minimo 8 caracteres"
+                secureTextEntry
+                textContentType="newPassword"
+                value={form.password}
+              />
+
+              {form.password.length > 0 ? (
+                <View style={styles.strengthBlock}>
+                  <View style={styles.strengthBar}>
+                    {[1, 2, 3, 4].map((segment) => (
+                      <View
+                        key={segment}
+                        style={[
+                          styles.strengthSegment,
+                          segment <= strengthFeedback.segments
+                            ? { backgroundColor: strengthFeedback.color }
+                            : null,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={[styles.strengthLabel, { color: strengthFeedback.color }]}>
+                    {strengthFeedback.label}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
 
 
             {isGoogleSignInEnabled ? (
@@ -582,41 +637,44 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 18,
   },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    marginBottom: 20,
-    maxWidth: 214,
-    width: "100%",
-  },
-  backButton: {
-    alignItems: "center",
-    borderColor: palette.neutral[500],
-    borderRadius: radius.xs,
-    borderStyle: "dashed",
-    borderWidth: 1,
-    height: 36,
-    justifyContent: "center",
-    marginRight: 14,
-    width: 36,
-  },
   title: {
     color: palette.navy.DEFAULT,
     fontSize: 19,
     fontWeight: "800",
     letterSpacing: 0,
+    marginBottom: 20,
   },
   form: {
     gap: 12,
-    maxWidth: 214,
+    maxWidth: 360,
     width: "100%",
   },
   fieldBlock: {
     gap: 7,
   },
+  passwordBlock: {
+    gap: 6,
+  },
+  strengthBlock: {
+    gap: 5,
+  },
+  strengthBar: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  strengthSegment: {
+    backgroundColor: palette.neutral[300],
+    borderRadius: radius.full,
+    flex: 1,
+    height: 4,
+  },
+  strengthLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
   label: {
     color: palette.navy.DEFAULT,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0,
   },
@@ -627,7 +685,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 1,
     flexDirection: "row",
-    minHeight: 43,
+    minHeight: 48,
     paddingHorizontal: 12,
   },
   inputShellError: {
@@ -642,9 +700,9 @@ const styles = StyleSheet.create({
   input: {
     color: palette.navy.DEFAULT,
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    height: 42,
+    height: 46,
     padding: 0,
   },
   errorText: {
@@ -662,7 +720,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
-    height: 43,
+    height: 48,
     justifyContent: "center",
     paddingHorizontal: 12,
   },
@@ -741,7 +799,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     gap: 12,
-    minHeight: 43,
+    minHeight: 48,
     paddingHorizontal: 12,
   },
   documentButtonText: {
@@ -779,7 +837,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: palette.amber.DEFAULT,
     borderRadius: 14,
-    height: 44,
+    height: 48,
     justifyContent: "center",
     marginTop: 4,
     shadowColor: "#fca311",

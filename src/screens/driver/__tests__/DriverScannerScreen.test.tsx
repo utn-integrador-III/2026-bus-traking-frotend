@@ -69,9 +69,33 @@ describe("DriverScannerScreen", () => {
     await screen.unmount();
   });
 
+  it("scans a URL-encoded QR produced by compatible readers", async () => {
+    const screen = await render(<DriverScannerScreen accessToken="jwt" onBack={jest.fn()} />);
+    const data = encodeURIComponent(JSON.stringify({ ticket_id: "ticket-encoded" }));
+
+    await fireEvent(screen.getByTestId("camera"), "barcodeScanned", { data });
+
+    await waitFor(() =>
+      expect(mockScan).toHaveBeenCalledWith("ticket-encoded", "jwt"),
+    );
+    await screen.unmount();
+  });
+
+  it("supports previously issued signed-envelope QRs", async () => {
+    const screen = await render(<DriverScannerScreen accessToken="jwt" onBack={jest.fn()} />);
+    const data = encode({ payload: { ticket_id: "legacy-ticket" }, signature: "signature" });
+
+    await fireEvent(screen.getByTestId("camera"), "barcodeScanned", { data });
+
+    await waitFor(() =>
+      expect(mockScan).toHaveBeenCalledWith("legacy-ticket", "jwt"),
+    );
+    await screen.unmount();
+  });
+
   it.each([
     [encode({}), "El QR no contiene"],
-    ["not-json", "Unexpected"],
+    ["not-json", "no es válido"],
   ])("shows invalid QR errors", async (data, message) => {
     const screen = await render(<DriverScannerScreen accessToken="jwt" onBack={jest.fn()} />);
     await fireEvent(screen.getByTestId("camera"), "barcodeScanned", { data });

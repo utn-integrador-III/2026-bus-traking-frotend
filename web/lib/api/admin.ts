@@ -7,6 +7,7 @@ import type {
   AdminIncident,
   AdminRoute,
   AdminStop,
+  AdminSeniorRequest,
   AdminTrip,
   AdminTripInput,
   CurrentTelemetry,
@@ -14,6 +15,7 @@ import type {
   StopInput,
   TelemetryPoint,
   TripStatus,
+  SeniorRequestStatus,
 } from "./types";
 
 export type LoadResult<T> =
@@ -76,15 +78,19 @@ export type RouteInput = Pick<AdminRoute, "name" | "origin" | "destination"> & {
 };
 
 export function updateRoute(id: string, input: RouteInput) {
-  return call<AdminRoute>(`/admin/routes/${id}`, { method: "PUT", body: input });
+  return call<{ updated: true }>(`/admin/routes/${id}`, { method: "PUT", body: input });
 }
 
 export function deactivateDriver(id: string) {
   return call<AdminDriver>(`/admin/drivers/${id}`, { method: "DELETE" });
 }
 
+export function reactivateDriver(id: string) {
+  return call<AdminDriver>(`/admin/drivers/${id}/reactivate`, { method: "POST" });
+}
+
 export function createRoute(input: RouteInput) {
-  return call<AdminRoute>("/admin/routes", { method: "POST", body: input });
+  return call<{ id: string }>("/admin/routes", { method: "POST", body: input });
 }
 
 export function getStops(routeId?: string) {
@@ -153,4 +159,24 @@ export function getTelemetryHistory(params: {
 
 export function getCurrentTelemetry() {
   return call<CurrentTelemetry[]>("/admin/telemetry/current");
+}
+
+export function getSeniorRequests(status: SeniorRequestStatus = "pending") {
+  return call<AdminSeniorRequest[]>(
+    `/admin/senior-requests?status=${encodeURIComponent(status)}`,
+  );
+}
+
+export function approveSeniorRequest(id: string) {
+  return call<AdminSeniorRequest>(`/admin/senior-requests/${id}/approve`, {
+    method: "PATCH",
+    body: {},
+  });
+}
+
+export function rejectSeniorRequest(id: string, rejectionReason: string) {
+  return call<AdminSeniorRequest>(`/admin/senior-requests/${id}/reject`, {
+    method: "PATCH",
+    body: { rejection_reason: rejectionReason },
+  });
 }

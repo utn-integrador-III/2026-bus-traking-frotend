@@ -96,7 +96,7 @@ export async function uploadSeniorDocumentPhoto(email: string, image: SeniorDocu
   };
 
   const uploadTarget = await apiRequest<SeniorDocumentUploadUrlResponse>(
-    "/api/auth/senior-document/upload-url",
+    "/api/auth/senior-document/pre-register-upload-url",
     {
       method: "POST",
       body: uploadRequest,

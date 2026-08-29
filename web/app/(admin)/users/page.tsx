@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/admin/page-header";
 import { DriverRow } from "@/components/admin/driver-row";
 import { LoadError } from "@/components/admin/load-error";
@@ -31,6 +33,15 @@ export default async function UsersPage() {
           drivers.length === 0
             ? "Sin conductores registrados"
             : `${drivers.length} conductores · ${active} activos`
+        }
+        action={
+          <Link
+            href="/users/new"
+            className="flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-md font-extrabold text-brand transition hover:brightness-105"
+          >
+            <Icon name="plus" size={18} />
+            Agregar conductor
+          </Link>
         }
       />
 

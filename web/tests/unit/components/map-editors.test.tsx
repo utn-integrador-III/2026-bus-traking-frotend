@@ -35,7 +35,24 @@ describe("MapLibre editors", () => {
     expect(screen.getByText(/clic en el mapa/)).toBeTruthy();
     await loadMap();
     act(() => mocks.instances[0].events.click({ lngLat: { lng: -84.1, lat: 9.9 } }));
+    fireEvent.click(screen.getByText("Punto guía"));
     expect(onChange).toHaveBeenCalledWith({ type: "LineString", coordinates: [[-84.1, 9.9]] });
+    act(() => mocks.instances[0].events.click({ lngLat: { lng: -84.2, lat: 10 } }));
+    fireEvent.click(screen.getByText("Punto guía"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ geometry: { type: "LineString", coordinates: [[-84.1, 9.9], [-84.15, 9.95], [-84.2, 10]] } }),
+    }));
+    fireEvent.click(screen.getByText("Ajustar a calles"));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith({
+      type: "LineString",
+      coordinates: [[-84.1, 9.9], [-84.15, 9.95], [-84.2, 10]],
+    }));
+    await waitFor(() => expect(mocks.source.setData).toHaveBeenLastCalledWith({
+      type: "FeatureCollection",
+      features: [],
+    }));
+    vi.unstubAllGlobals();
 
     const line = { type: "LineString" as const, coordinates: [[-84.1, 9.9], [-84.2, 10]] as [number, number][] };
     rerender(<RouteGeometryEditor value={line} onChange={onChange} />);

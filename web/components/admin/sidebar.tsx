@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { href: "/trips", label: "Viajes", icon: "bus" },
   { href: "/telemetry", label: "Historial", icon: "activity" },
   { href: "/users", label: "Usuarios", icon: "users" },
+  { href: "/senior-requests", label: "Adultos mayores", icon: "user" },
   { href: "/incidents", label: "Alertas", icon: "alertTriangle" },
 ];
 

@@ -97,44 +97,6 @@ function parseGeoJsonCoords(geojson: string | null): LatLng[] {
   }
 }
 
-function buildStopMarkers(coords: LatLng[]): StopMarker[] {
-  if (coords.length === 0) return [];
-  const markers: StopMarker[] = [];
-  markers.push({
-    ...coords[0],
-    id: null,
-    label: "Abordaje",
-    index: 0,
-    isBoarding: true,
-    isDestination: false,
-  });
-  if (coords.length > 2) {
-    const step = Math.max(1, Math.floor((coords.length - 2) / 4));
-    for (let i = step; i < coords.length - 1; i += step) {
-      if (markers.length >= 6) break;
-      markers.push({
-        ...coords[i],
-        id: null,
-        label: `Parada ${markers.length}`,
-        index: i,
-        isBoarding: false,
-        isDestination: false,
-      });
-    }
-  }
-  if (coords.length > 1) {
-    markers.push({
-      ...coords[coords.length - 1],
-      id: null,
-      label: "Destino",
-      index: coords.length - 1,
-      isBoarding: false,
-      isDestination: true,
-    });
-  }
-  return markers;
-}
-
 function buildStopMarkersFromRouteStops(routeStops: StopRaw[]): StopMarker[] {
   return [...routeStops]
     .sort((a, b) => a.stop_order - b.stop_order)
@@ -195,11 +157,8 @@ export default function PassengerHomeScreen({
   );
 
   const stopMarkers = useMemo(
-    () =>
-      routeStops.length > 0
-        ? buildStopMarkersFromRouteStops(routeStops)
-        : buildStopMarkers(routeCoords),
-    [routeCoords, routeStops],
+    () => buildStopMarkersFromRouteStops(routeStops),
+    [routeStops],
   );
 
   const stopMarkerCoords = useMemo(
@@ -207,8 +166,12 @@ export default function PassengerHomeScreen({
     [stopMarkers],
   );
 
-  const boardingNode: LatLng | null =
-    routeCoords.length > 0 ? routeCoords[0] : null;
+  const boardingNode = useMemo<LatLng | null>(() => {
+    const firstStop = stopMarkers[0];
+    return firstStop
+      ? { latitude: firstStop.latitude, longitude: firstStop.longitude }
+      : null;
+  }, [stopMarkers]);
 
   const mapRegion = useMemo(() => {
     if (routeCoords.length === 0) {
@@ -492,7 +455,7 @@ export default function PassengerHomeScreen({
 
         {selectedTrip && routeStops.length === 0 ? (
           <Text style={styles.stopHintText}>
-            Paradas aproximadas: esta ruta todavía no tiene paradas registradas.
+            Esta ruta todavía no tiene paradas registradas.
           </Text>
         ) : null}
 

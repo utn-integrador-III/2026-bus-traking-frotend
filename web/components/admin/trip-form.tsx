@@ -46,13 +46,18 @@ export function TripForm({
       setError("Indicá la hora de salida.");
       return;
     }
+    const departure = new Date(departureTime);
+    if (Number.isNaN(departure.getTime())) {
+      setError("La hora de salida no es válida.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await saveTripAction({
         route_id: routeId,
         bus_id: busId,
         driver_id: driverId,
-        departure_time: departureTime,
+        departure_time: departure.toISOString(),
       });
       if (!result.ok) {
         setError(result.message);

@@ -144,17 +144,18 @@ describe("PassengerHomeScreen", () => {
     await screen.unmount();
   });
 
-  it("uses approximate route stops when the API has none", async () => {
+  it("does not create selectable stops when the API has none", async () => {
     mockApi.trips.mockResolvedValue([{ ...trip, routeId: null, status: "Delayed" }]);
     const screen = await renderHome();
     await fireEvent.press(screen.getByText("San Jose - Heredia"));
-    await waitFor(() => expect(screen.getByText(/Paradas aproximadas/)).toBeTruthy());
-    await fireEvent.press(screen.getByText("Abordaje"));
-    expect(screen.getByText(/Esta parada es aproximada/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/no tiene paradas registradas/)).toBeTruthy());
+    expect(screen.queryByText("Abordaje")).toBeNull();
+    expect(screen.queryByText("P1")).toBeNull();
+    expect(mockApi.watch).not.toHaveBeenCalled();
     await screen.unmount();
   });
 
-  it("renders realtime bus positions and reports a missed boarding point", async () => {
+  it("renders realtime bus positions without alerts for unregistered points", async () => {
     mockApi.trips.mockResolvedValue([{ ...trip, routeId: null }]);
     const screen = await renderHome();
     await fireEvent.press(screen.getByText("San Jose - Heredia"));
@@ -162,9 +163,7 @@ describe("PassengerHomeScreen", () => {
     await act(async () => mockRealtimeCallback?.({ payload: { latitude: 9.9, longitude: -84.1 } }));
     expect(screen.getByTestId("live-marker")).toBeTruthy();
     await act(async () => mockRealtimeCallback?.({ new: { lat: 10.1, lng: -84.5, speed: 20 } }));
-    expect(Alert.alert).toHaveBeenCalledWith("Bus perdido", expect.any(String), expect.any(Array), { cancelable: false });
-    const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)?.[2];
-    await act(async () => buttons[0].onPress());
+    expect(Alert.alert).not.toHaveBeenCalled();
     await screen.unmount();
   });
 

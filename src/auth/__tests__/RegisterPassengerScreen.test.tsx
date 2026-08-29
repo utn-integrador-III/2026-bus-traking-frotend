@@ -124,6 +124,24 @@ describe("RegisterPassengerScreen", () => {
     await screen.unmount();
   });
 
+  it("shows password strength feedback while typing", async () => {
+    const screen = await render(<RegisterPassengerScreen />);
+    const input = screen.getByPlaceholderText("Minimo 8 caracteres");
+
+    await fireEvent.changeText(input, "abc");
+    expect(screen.getByText("Debil")).toBeTruthy();
+
+    await fireEvent.changeText(input, "password1");
+    expect(screen.getByText("Media")).toBeTruthy();
+
+    await fireEvent.changeText(input, "Password1!");
+    expect(screen.getByText("Fuerte")).toBeTruthy();
+
+    await fireEvent.changeText(input, "");
+    expect(screen.queryByText("Fuerte")).toBeNull();
+    await screen.unmount();
+  });
+
   it("handles denied, cancelled and failed document capture", async () => {
     mockPermission.mockResolvedValueOnce({ granted: false });
     const screen = await render(<RegisterPassengerScreen />);

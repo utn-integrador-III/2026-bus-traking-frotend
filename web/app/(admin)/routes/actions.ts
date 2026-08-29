@@ -6,10 +6,21 @@ import {
   deactivateRoute,
   reactivateRoute,
   updateRoute,
+  createStop,
+  updateStop,
+  deleteStop,
 } from "@/lib/api/admin";
 import type { GeoJsonLineString } from "@/lib/api/types";
 
-export type ActionResult = { ok: true } | { ok: false; message: string };
+export type ActionResult = { ok: true; id?: string } | { ok: false; message: string };
+
+export type RouteStopInput = {
+  id?: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  geofence_radius_meters: number;
+};
 
 export type RouteFormInput = {
   id?: string;
@@ -17,6 +28,8 @@ export type RouteFormInput = {
   origin: string;
   destination: string;
   geometry_geojson: GeoJsonLineString;
+  stops?: RouteStopInput[];
+  deleted_stop_ids?: string[];
 };
 
 function isValidGeometry(geometry: GeoJsonLineString) {
@@ -44,6 +57,9 @@ export async function saveRouteAction(input: RouteFormInput): Promise<ActionResu
   if (!isValidGeometry(input.geometry_geojson)) {
     return { ok: false, message: "El trazado debe tener al menos 2 puntos válidos." };
   }
+  if (!areValidStops(input.stops ?? [])) {
+    return { ok: false, message: "Revisá el nombre, ubicación y radio de cada parada." };
+  }
 
   const payload = {
     name,
@@ -52,13 +68,57 @@ export async function saveRouteAction(input: RouteFormInput): Promise<ActionResu
     geometry_geojson: input.geometry_geojson,
   };
 
-  const result = input.id
-    ? await updateRoute(input.id, payload)
-    : await createRoute(payload);
+  let routeId = input.id;
+  if (routeId) {
+    const result = await updateRoute(routeId, payload);
+    if (!result.ok) return { ok: false, message: result.message };
+  } else {
+    const result = await createRoute(payload);
+    if (!result.ok) return { ok: false, message: result.message };
+    routeId = result.data.id;
+  }
+  if (!routeId) {
+    return { ok: false, message: "La API no devolvió el identificador de la ruta creada." };
+  }
 
-  if (!result.ok) return { ok: false, message: result.message };
+  for (const stopId of input.deleted_stop_ids ?? []) {
+    const stopResult = await deleteStop(stopId);
+    if (!stopResult.ok) {
+      return { ok: false, message: `La ruta se guardó, pero no se pudo eliminar una parada: ${stopResult.message}` };
+    }
+  }
+
+  for (const [index, stop] of (input.stops ?? []).entries()) {
+    const stopPayload = {
+      route_id: routeId,
+      name: stop.name.trim(),
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      stop_order: index + 1,
+      geofence_radius_meters: stop.geofence_radius_meters,
+    };
+    const stopResult = stop.id
+      ? await updateStop(stop.id, stopPayload)
+      : await createStop(stopPayload);
+    if (!stopResult.ok) {
+      return { ok: false, message: `La ruta se guardó, pero falló la parada ${index + 1}: ${stopResult.message}` };
+    }
+  }
+
   revalidatePath("/routes");
-  return { ok: true };
+  revalidatePath("/stops");
+  return { ok: true, id: routeId };
+}
+
+function areValidStops(stops: RouteStopInput[]) {
+  return stops.every(
+    (stop) =>
+      stop.name.trim().length > 0 &&
+      Number.isFinite(stop.latitude) &&
+      Number.isFinite(stop.longitude) &&
+      Number.isInteger(stop.geofence_radius_meters) &&
+      stop.geofence_radius_meters > 0,
+  );
 }
 
 export async function deactivateRouteAction(id: string): Promise<ActionResult> {

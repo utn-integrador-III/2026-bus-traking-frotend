@@ -76,44 +76,6 @@ function geoJsonToLatLng(route: PassengerTripTrackingData): LatLng[] {
   }));
 }
 
-function buildStopPoints(coords: LatLng[]): StopPoint[] {
-  if (coords.length === 0) return [];
-  const stops: StopPoint[] = [];
-  stops.push({
-    id: null,
-    coordinate: coords[0],
-    index: 0,
-    label: "Abordaje",
-    isBoarding: true,
-    isDestination: false,
-  });
-  if (coords.length > 2) {
-    const step = Math.max(1, Math.floor((coords.length - 2) / 4));
-    for (let i = step; i < coords.length - 1; i += step) {
-      if (stops.length >= 6) break;
-      stops.push({
-        id: null,
-        coordinate: coords[i],
-        index: i,
-        label: `Parada ${stops.length}`,
-        isBoarding: false,
-        isDestination: false,
-      });
-    }
-  }
-  if (coords.length > 1) {
-    stops.push({
-      id: null,
-      coordinate: coords[coords.length - 1],
-      index: coords.length - 1,
-      label: "Destino",
-      isBoarding: false,
-      isDestination: true,
-    });
-  }
-  return stops;
-}
-
 function buildStopPointsFromRouteStops(routeStops: StopRaw[]): StopPoint[] {
   return [...routeStops]
     .sort((a, b) => a.stop_order - b.stop_order)
@@ -219,14 +181,9 @@ export default function PassengerRouteTrackingScreen({
   }, [tripData]);
 
   const stopPoints = useMemo(
-    () =>
-      routeStops.length > 0
-        ? buildStopPointsFromRouteStops(routeStops)
-        : buildStopPoints(routePoints),
-    [routePoints, routeStops],
+    () => buildStopPointsFromRouteStops(routeStops),
+    [routeStops],
   );
-
-  const areStopsApproximate = routeStops.length === 0;
 
   const stopPointCoords = useMemo(
     () => stopPoints.map((sp) => sp.coordinate),
@@ -636,9 +593,9 @@ export default function PassengerRouteTrackingScreen({
           </Text>
         </View>
 
-        {areStopsApproximate ? (
+        {routeStops.length === 0 ? (
           <Text style={styles.stopHintText}>
-            Paradas aproximadas: esta ruta todavía no tiene paradas registradas.
+            Esta ruta todavía no tiene paradas registradas.
           </Text>
         ) : null}
 
