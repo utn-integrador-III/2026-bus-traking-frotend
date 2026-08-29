@@ -1,112 +1,191 @@
-# 2026-bus-traking-frotend
+# Bus Tracking - Frontend
 
-## Project Structure
+This repository contains the frontend of the Real-Time Bus Tracking application, a "Waze for public transportation" that serves three user roles: **Passengers**, **Drivers**, and **Administrators**. It is built as an npm workspaces monorepo that includes a **React Native (Expo) mobile app**, a **Next.js web admin panel**, and a shared **design system package**. The frontend consumes a REST API and Supabase Realtime from a separate backend repository.
 
-This repository contains the frontend of the Real-Time Bus Tracking Application. The mobile application is built with React Native and is organized to support three main user roles: passengers, drivers, and administrators.
+## Members
 
-The project structure is designed to keep the code modular, scalable, and easy to maintain as the application grows.
+- Alex Herrera Manzanares
+- Luis Alejandro López Reyes
+- Sebastián Rodríguez Mesen
+- Sergio Quesada Chavarría
+- Samiel Marín Cambronero
 
-```bash
-src/
-├── app/
-├── auth/
-├── navigation/
-├── screens/
-│   ├── passenger/
-│   ├── driver/
-│   └── admin/
-├── components/
-├── services/
-├── hooks/
-├── context/
-├── types/
-├── utils/
-└── config/
+---
+
+## Features
+
+- **Mobile App (React Native + Expo)**: Public passenger registration and login, role-based navigation, available routes and trips, interactive route preview, real-time bus tracking with GeoJSON layers, simulated ticket checkout with QR rendering, QR boarding validation, incident reporting, push notifications, senior citizen exemption, and an offline incident queue.
+- **Driver Mode**: Assigned trips for the day, start/end trip with a single tap, background GPS streaming every 2 seconds while a trip is active, and an onboard QR scanner.
+- **Web Admin Panel (Next.js)**: Cartographic dashboard with live telemetry, CRUD for routes, stops, buses, trips, and drivers, active trip monitoring, and community incident moderation.
+- **Shared Design System (`@bustrack/design`)**: Single source of truth for design tokens (colors, typography, spacing, radii, shadows, z-index) and icons, consumed by both the web and mobile apps.
+- **Real-Time**: Supabase Realtime channels for bus telemetry and trip status changes, with push notifications on state changes and geofence alerts.
+- **Offline Support**: Incident reports written without connectivity are queued locally (SQLite) and synchronized when the network is restored.
+- **Quality Gates**: Husky pre-commit hooks, ESLint, TypeScript strict typechecking, unit and E2E test suites with 80% coverage thresholds, Gitleaks secret scanning, and GitHub Actions CI.
+
+---
+
+## Project Architecture
+
+### 1. Mobile App (`src/` at the repository root)
+
+Organized by responsibility and user role:
+
+- **`auth/`**: Login, public passenger registration, and protected access handling.
+- **`navigation/`**: Role-based navigation (Passenger / Driver / Admin).
+- **`screens/`**: Application screens grouped by role (`passenger/`, `driver/`).
+- **`services/`**: External communication (REST API client, Supabase, auth, tickets, incidents, driver location, notifications).
+- **`hooks/`**: Custom hooks (geofence alerts, offline sync, push notifications).
+- **`database/`**: Local SQLite queue for offline incident reports.
+- **`types/`**: Shared TypeScript types (user, trip, incident, etc.).
+- **`config/`** and **`lib/`**: Environment configuration, constants, and Supabase client initialization.
+
+Screens never call the API directly; they go through `services/` and `hooks/` to keep the UI decoupled from providers (NFR-14).
+
+### 2. Web Admin Panel (`web/`)
+
+Next.js 16 (App Router) application for administrators:
+
+- **`app/`**: Routes for login, auth callback, and the admin section (dashboard, trips, routes, stops, users, incidents, telemetry).
+- **`components/admin/`**: Admin UI components (sidebar, tables, forms, maps, stat cards).
+- **`lib/api/`**: Typed API client functions for the backend REST endpoints.
+- **`lib/auth/`**: Session and cookie management via Supabase Auth.
+- **`tests/`**: Playwright E2E tests and Vitest unit tests.
+
+### 3. Shared Design System (`packages/design/`)
+
+Package `@bustrack/design`: design tokens as the single source of truth (Prussian navy `#14213d`, orange/amber `#fca311`, background `#e8e9e6`, Plus Jakarta Sans), SVG icon set, and a Tailwind v4 theme CSS consumed by the web app.
+
+### 4. File Structure
+
+```text
+2026-bus-traking-frotend
+    |
+    |-- src                      # Mobile app (React Native + Expo)
+    |   |-- auth                 # Login, passenger registration, protected access
+    |   |-- navigation           # Role-based navigation
+    |   |-- screens
+    |   |   |-- passenger        # Trips, live tracking, tickets, QR, incidents
+    |   |   `-- driver           # Assigned trips, trip control, QR scanner
+    |   |-- services             # REST API, Supabase, auth, tickets, incidents
+    |   |-- hooks                # Custom hooks (push, geofence, offline sync)
+    |   |-- database             # SQLite offline incident queue
+    |   |-- types                # Shared TypeScript types
+    |   |-- config               # Environment configuration and constants
+    |   `-- lib                  # Supabase client initialization
+    |
+    |-- web                      # Web admin panel (Next.js 16 + React 19)
+    |   |-- app                  # App Router pages (login, admin section)
+    |   |-- components           # Reusable UI and admin components
+    |   |-- lib                  # API client, auth, environment validation
+    |   |-- tests                # Playwright E2E and Vitest unit tests
+    |   `-- scripts              # Environment drift and quality scripts
+    |
+    |-- packages
+    |   `-- design               # Shared design system (@bustrack/design)
+    |
+    |-- .github                  # CI workflows (typecheck, lint, build, test, secret scan)
+    |-- App.tsx                  # Mobile app entry point
+    |-- app.config.js            # Expo configuration
+    `-- package.json             # npm workspaces root and shared tooling
 ```
 
-### Folder Overview
+---
 
-#### `app/`
-Contains global application configuration, role definitions, permissions, and general providers.
+## Configuration
 
-#### `auth/`
-Contains authentication-related logic and screens, such as login, passenger registration, and protected access handling.
+### Prerequisites
 
-#### `navigation/`
-Contains the navigation structure of the app, including role-based navigation for passengers, drivers, and administrators.
+- Node.js (20.9 or higher, 22 recommended)
+- npm
+- Git
+- A running instance of the backend API (separate repository) on `http://localhost:8000`
+- A Supabase project (URL and anon key)
+- A Google Maps mobile API key (for the mobile map)
 
-#### `screens/`
-Contains the main application screens, organized by user role.
+### Installation
 
-#### `screens/passenger/`
-Contains screens for passengers, such as available trips, trip details, real-time map tracking, incident reports, notifications, and profile management.
+1. Clone the repository:
 
-#### `screens/driver/`
-Contains screens for drivers, such as assigned trips, trip control, map view, start/end trip actions, and incident reporting.
+```bash
+git clone https://github.com/utn-integrador-III/2026-bus-traking-frotend.git
+cd 2026-bus-traking-frotend
+```
 
-#### `screens/admin/`
-Contains screens for administrators, such as dashboard, trip management, route management, stop management, bus management, driver management, active trip monitoring, and report moderation.
+2. Install dependencies from the repository root (single lockfile for all workspaces):
 
-#### `components/`
-Contains reusable UI components used across the application, including map components, trip cards, report items, notification elements, and shared interface components.
+```bash
+npm install
+```
 
-#### `services/`
-Contains communication logic for external services, including the backend API, Supabase, authentication, trips, locations, reports, notifications, and real-time updates.
+3. Create the mobile environment file from the template:
 
-#### `hooks/`
-Contains custom React hooks used to reuse logic across the application, such as authentication state, role validation, real-time trip tracking, location tracking, and notifications.
+```bash
+cp .env.example .env
+```
 
-#### `context/`
-Contains global state providers, such as authentication context and trip context.
+The `.env` file must define `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`.
 
-#### `types/`
-Contains TypeScript types and interfaces for users, trips, routes, stops, buses, reports, and notifications.
+4. Create the web environment file from the template:
 
-#### `utils/`
-Contains helper functions for dates, distances, role validation, form validation, and other reusable logic.
+```bash
+cp web/.env.example web/.env.local
+```
 
-#### `config/`
-Contains environment configuration, constants, and general application settings.
+The web file must define `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
-## Role-Based Organization
+### Running the Mobile App
 
-The application separates screens and features according to the authenticated user role.
+```bash
+npx expo start          # start the Metro dev server and scan the QR with Expo Go
+npm run android         # build/run on an Android emulator or device
+npm run ios             # build/run on an iOS simulator (macOS only)
+```
 
-### Passenger
+### Running the Web Admin Panel
 
-Passengers can view available trips, follow a bus in real time, receive notifications, select stops, and report incidents.
+```bash
+npm run web:dev         # start the Next.js dev server
+```
 
-### Driver
+Access: `http://localhost:3000`
 
-Drivers can view assigned trips, start and end trips, send real-time GPS location updates, and report critical incidents.
+---
 
-### Administrator
+## Automated Testing
 
-Administrators can manage trips, routes, stops, buses, and drivers. They can also monitor active trips and review user reports.
+Both apps include test suites orchestrated through the root workspace scripts:
 
-## Frontend Responsibilities
+```bash
+npm run mobile:test            # Jest unit tests (mobile)
+npm run mobile:test:coverage   # mobile coverage report (80% threshold)
+npm run web:test               # Playwright E2E tests (web)
+npm run web:test:unit          # Vitest unit tests (web)
+npm run web:test:coverage      # web coverage report (80% threshold)
+```
 
-The frontend is responsible for displaying the mobile interface for passengers, drivers, and administrators.
+Quality gates available as root scripts:
 
-It also handles authentication, role-based navigation, trip visualization, real-time map tracking, GPS updates, incident reports, push notifications, and communication with the backend API.
+```bash
+npm run mobile:typecheck
+npm run mobile:lint
+npm run web:typecheck
+npm run web:lint
+npm run design:typecheck
+```
 
-## Main responsibilities include:
+---
 
-- Displaying the mobile user interface.
-- Handling login and passenger registration.
-- Managing navigation based on the authenticated user role.
-- Showing available trips and trip details.
-- Displaying bus location, official stops, and route information on a map.
-- Sending the driver's GPS location while a trip is active.
-- Listening to real-time trip updates through Supabase Realtime.
-- Allowing passengers and drivers to submit incident reports.
-- Receiving and displaying push notifications.
-- Communicating with the backend API for business logic and complex operations.
+## Demo Video
 
-## Development Notes
+[Watch the demo video](https://drive.google.com/drive/folders/1ESZNOkoY20TGu7pt-pSl53VWlYAaMI9S?usp=sharing)
 
-This structure separates responsibilities clearly across the project.
+---
 
-Screens are organized by user role. Reusable interface elements are placed in `components/`. External communication is handled through `services/`. Shared logic is placed in `hooks/`. Global state is handled in `context/`. Common definitions are stored in `types/`, `utils/`, and `config/`.
+## Future Improvements
 
-This organization allows the project to grow in a clean and maintainable way without mixing user interface, navigation, business logic, and external service communication.
+- **Map provider abstraction**: Google Maps was adopted in this delivery following the professor's recommendation. In future iterations the map layer will move behind an adapter so Google Maps, Mapbox, and MapLibre can be swapped without touching screens or backend services, avoiding dependence on a single provider.
+- **Design polish**: refine the screens that still rely on native Android defaults so the entire UI follows the shared design system.
+
+---
+
+[Back to top](#bus-tracking---frontend)
