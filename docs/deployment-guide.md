@@ -92,8 +92,9 @@ Archivos clave en el backend:
 **Plataforma:** Vercel (plan Hobby, gratuito)
 
 **Archivos de configuracion necesarios:**
-- `vercel.json` (raiz del repo) -- configura `rootDirectory: "web"` para el
-  monorepo, define `buildCommand`, `installCommand`, y `framework: "nextjs"`.
+- `vercel.json` (raiz del repo) -- define `buildCommand`, `installCommand`, y
+  `framework: "nextjs"`. El **Root Directory** se configura como `web/` en los
+  ajustes del proyecto de Vercel; no es una propiedad valida de `vercel.json`.
 - `.github/workflows/deploy-web.yml` -- CD pipeline que despliega a Vercel.
 
 **Variables de entorno (`web/.env.example`):**
